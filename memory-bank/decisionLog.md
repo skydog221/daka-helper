@@ -64,4 +64,21 @@ Rationale:
 - 构建工具: `electron-builder`
 - Android 构建: 需要 Java 环境 (Temurin JDK 17)
 - 产物上传: 使用 `actions/upload-artifact` 和 `actions/download-artifact`
+
+---
+
+### Decision (Code)
+
+[2025-06-02 13:49:06] - 将 GitHub Actions 工作流的包管理器从 pnpm 改为 yarn
+
+**Rationale:**
+根据项目规则文件 `.roo/rules/node.md` 的规定，该项目使用 yarn 作为包管理器。为保持一致性，需要将 GitHub Actions 工作流中的包管理器从 pnpm 更改为 yarn。
+
+**Details:**
+修改了 [`.github/workflows/release.yml`](.github/workflows/release.yml:44-66):
+
+- 将 `cache: "pnpm"` 改为 `cache: "yarn"`
+- 移除了 `pnpm/action-setup@v3` 步骤
+- 将 `pnpm install --frozen-lockfile` 改为 `yarn install --frozen-lockfile`
+- 将 `pnpm electron-builder` 改为 `yarn electron-builder`
 - Release 创建: 使用 `softprops/action-gh-release`

@@ -42,4 +42,5 @@ Details:
 - 推送一个符合 `v*.*.*` 格式的标签 (例如 `git tag v1.0.0` 然后 `git push origin v1.0.0`) 来触发工作流。
 - 检查 GitHub Actions 的运行状态和结果。
 
+* [2025-06-02 13:49:29] - 修改 GitHub Actions 工作流配置，将包管理器从 pnpm 更改为 yarn
 * [2025-06-02 13:43:06] - 完成 GitHub Actions 工作流 [`release.yml`](.github/workflows/release.yml:0) 的创建，用于实现多平台（Linux, Windows, macOS, Android）构建和自动发布。使用 pnpm 和 electron-builder。

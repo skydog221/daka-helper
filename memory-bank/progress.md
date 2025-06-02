@@ -53,4 +53,5 @@ Details: 已成功创建 GitHub Actions 工作流文件 `.github/workflows/relea
 
 - [COMPLETED] 2025/6/2 下午 1:05:22 - 完成更新 README.md 中的项目结构。
 
+* [2025-06-02 13:49:41] - [COMPLETED] 修改 GitHub Actions 工作流配置，将包管理器从 pnpm 更改为 yarn
 * [2025-06-02 13:43:16] - [COMPLETED] 配置 GitHub Actions 工作流 ([`.github/workflows/release.yml`](.github/workflows/release.yml:0))，用于多平台构建 (Linux, Windows, macOS, Android) 和自动发布。
