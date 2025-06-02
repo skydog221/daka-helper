@@ -185,6 +185,7 @@ graph LR
 - **构建命令**:
   - `yarn build`: 根据 [`electron-builder.json`](../electron-builder.json:1) 中的配置构建。通常会构建当前操作系统的安装包。
 - **输出目录**: `dist/`
+- 如果使用 Github Action，请确保已设置 repo secrets：`GH_TOKEN`为具有仓库完全访问权限（读写、发布版）的 GitHub Token。
 
 ## 7. 编码规范
 

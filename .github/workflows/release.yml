@@ -31,8 +31,7 @@ jobs:
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # GitHub Token 用于创建 Release
+
         with:
           tag_name: ${{ github.ref_name }} # 使用触发工作流的 Git 标签名
           release_name: Release ${{ github.ref_name }} # Release 的名称
@@ -41,8 +40,7 @@ jobs:
 
       - name: Upload Windows Installer
         uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} # 从上一步获取上传 URL
           asset_path: ./dist/打卡剪辑助手 Setup ${{ github.ref_name }}.exe # Windows 安装程序的路径
@@ -58,8 +56,7 @@ jobs:
 
       - name: Upload win-unpacked zip
         uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./dist/win-unpacked-${{ github.ref_name }}.zip # win-unpacked 压缩包的路径
