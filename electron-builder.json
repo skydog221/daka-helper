@@ -1,0 +1,19 @@
+{
+  "appId": "com.skydog221.daka-helper",
+  "productName": "打卡剪辑助手",
+  "directories": {
+    "output": "dist"
+  },
+  "files": ["main.js", "src/**/*", "package.json"],
+  "win": {
+    "target": "nsis",
+    "icon": null
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "打卡剪辑助手"
+  }
+}

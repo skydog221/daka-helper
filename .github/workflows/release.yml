@@ -1,0 +1,67 @@
+name: Release Electron App
+
+on:
+  push:
+    tags:
+      - "v*.*.*" # 当 vX.Y.Z 格式的标签被推送时触发
+
+jobs:
+  release:
+    runs-on: ubuntu-latest # 在最新的 Ubuntu runner 上运行
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4 # 检出仓库代码
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4 # 设置 Node.js 环境
+        with:
+          node-version: "20" # 或者您项目兼容的 Node.js 版本
+          cache: "yarn" # 缓存 yarn 依赖
+
+      - name: Install yarn
+        run: npm install -g yarn # 全局安装 yarn，如果 runner 没有预装的话
+
+      - name: Install dependencies
+        run: yarn # 使用 yarn 安装项目依赖
+
+      - name: Build application
+        run: yarn run build # 执行构建命令
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # GitHub Token 用于创建 Release
+        with:
+          tag_name: ${{ github.ref_name }} # 使用触发工作流的 Git 标签名
+          release_name: Release ${{ github.ref_name }} # Release 的名称
+          draft: false
+          prerelease: false
+
+      - name: Upload Windows Installer
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # 从上一步获取上传 URL
+          asset_path: ./dist/打卡剪辑助手 Setup ${{ github.ref_name }}.exe # Windows 安装程序的路径
+          asset_name: 打卡剪辑助手 Setup ${{ github.ref_name }}.exe # 上传后的文件名
+          asset_content_type: application/vnd.microsoft.portable-executable
+
+      - name: Zip win-unpacked directory
+        run: |
+          cd dist/win-unpacked
+          zip -r ../win-unpacked-${{ github.ref_name }}.zip .
+          cd ../..
+        # 将 win-unpacked 目录压缩成 zip 文件
+
+      - name: Upload win-unpacked zip
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/win-unpacked-${{ github.ref_name }}.zip # win-unpacked 压缩包的路径
+          asset_name: win-unpacked-${{ github.ref_name }}.zip # 上传后的文件名
+          asset_content_type: application/zip
