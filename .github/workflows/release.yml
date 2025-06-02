@@ -1,64 +1,126 @@
-name: Release Electron App
+# 为 daka-helper 应用创建 GitHub Actions 工作流，用于构建和发布
+name: Release CI
 
 on:
   push:
     branches:
-      - main
+      - main # 推送到 main 分支时触发，用于测试构建
+    tags:
+      - "v*.*.*" # 创建 vX.X.X 格式的标签时触发，用于正式发布
+  workflow_dispatch: # 允许手动触发
 
 jobs:
-  release:
-    runs-on: ubuntu-latest # 在最新的 Ubuntu runner 上运行
+  build:
+    name: Build for ${{ matrix.os }} (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux
+            node-version: "20"
+            artifact_name: dist-linux
+            build_command_suffix: --linux
+          - os: ubuntu-latest # Android 在 Ubuntu 上构建
+            target: android
+            node-version: "20"
+            artifact_name: dist-android
+            build_command_suffix: --android
+          - os: macos-latest
+            target: mac
+            node-version: "20"
+            artifact_name: dist-mac
+            build_command_suffix: --mac
+          - os: windows-latest
+            target: win
+            node-version: "20"
+            artifact_name: dist-win
+            build_command_suffix: --win
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4 # 检出仓库代码
+      - name: 检出代码
+        uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4 # 设置 Node.js 环境
+      - name: 设置 Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
         with:
-          node-version: "20" # 或者您项目兼容的 Node.js 版本
-          cache: "yarn" # 缓存 yarn 依赖
+          node-version: ${{ matrix.node-version }}
+          cache: "pnpm"
 
-      - name: Install yarn
-        run: npm install -g yarn # 全局安装 yarn，如果 runner 没有预装的话
-
-      - name: Install dependencies
-        run: yarn # 使用 yarn 安装项目依赖
-
-      - name: Build application
-        run: yarn run build # 执行构建命令
-
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-
+      - name: (仅 Android) 设置 Java JDK
+        if: matrix.target == 'android'
+        uses: actions/setup-java@v4
         with:
-          tag_name: ${{ github.ref_name }} # 使用触发工作流的 Git 标签名
-          release_name: Release ${{ github.ref_name }} # Release 的名称
-          draft: false
-          prerelease: false
+          java-version: "17" # Electron Builder Android 构建通常需要 JDK 11 或更高版本
+          distribution: "temurin" # 'temurin' (Eclipse Temurin) 是一个常用的 OpenJDK 发行版
 
-      - name: Upload Windows Installer
-        uses: actions/upload-release-asset@v1
-
+      - name: 安装 pnpm
+        uses: pnpm/action-setup@v3
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }} # 从上一步获取上传 URL
-          asset_path: ./dist/打卡剪辑助手 Setup ${{ github.ref_name }}.exe # Windows 安装程序的路径
-          asset_name: 打卡剪辑助手 Setup ${{ github.ref_name }}.exe # 上传后的文件名
-          asset_content_type: application/vnd.microsoft.portable-executable
+          version: latest # 或者指定一个版本号
 
-      - name: Zip win-unpacked directory
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: 执行构建
+        run: pnpm electron-builder ${{ matrix.build_command_suffix }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # electron-builder 可能需要 GITHUB_TOKEN 来发布
+
+      - name: 上传构建产物 (${{ matrix.target }})
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: | # electron-builder 的输出目录通常是 dist/
+            dist/**/*.AppImage
+            dist/**/*.snap
+            dist/**/*.deb
+            dist/**/*.rpm
+            dist/**/*.zip
+            dist/**/*.tar.gz
+            dist/**/*.dmg
+            dist/**/*.pkg
+            dist/**/*.mas
+            dist/**/*.exe
+            dist/**/*.msi
+            dist/**/*.apk
+            dist/**/win-unpacked # 有时也需要上传未打包的目录
+            dist/**/linux-unpacked
+            dist/**/mac-unpacked
+          if-no-files-found: error # 如果没有找到文件则报错
+
+  release:
+    name: Create GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v') # 仅在创建标签时运行
+    needs: build # 依赖 build job
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # 需要写入权限来创建 release
+
+    steps:
+      - name: 下载所有构建产物
+        uses: actions/download-artifact@v4
+        with:
+          path: all-artifacts # 下载到 all-artifacts 目录
+          # 'name' 参数不指定，则下载所有 artifact
+
+      - name: 列出下载的产物 (用于调试)
         run: |
-          cd dist/win-unpacked
-          zip -r ../win-unpacked-${{ github.ref_name }}.zip .
-          cd ../..
-        # 将 win-unpacked 目录压缩成 zip 文件
+          echo "Listing all-artifacts directory:"
+          ls -R all-artifacts
 
-      - name: Upload win-unpacked zip
-        uses: actions/upload-release-asset@v1
-
+      - name: 创建 GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/win-unpacked-${{ github.ref_name }}.zip # win-unpacked 压缩包的路径
-          asset_name: win-unpacked-${{ github.ref_name }}.zip # 上传后的文件名
-          asset_content_type: application/zip
+          files: | # 指向包含所有平台产物的路径
+            all-artifacts/dist-linux/*
+            all-artifacts/dist-android/*
+            all-artifacts/dist-mac/*
+            all-artifacts/dist-win/*
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # tag_name: ${{ github.ref_name }} # action-gh-release 会自动使用当前的 tag
+          # name: Release ${{ github.ref_name }} # Release 的标题
+          # body: | # Release 的描述，可以从 CHANGELOG.md 或其他地方生成
+          #   Automated release for ${{ github.ref_name }}
+          # draft: false
+          # prerelease: false

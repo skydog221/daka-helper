@@ -45,3 +45,23 @@ Rationale:
 - 步骤包括：检出代码、设置 Node.js (pnpm)、安装依赖、构建应用、创建 Release、上传构建产物。
 - 构建产物包括 Windows 安装程序和 win-unpacked 目录的 zip 压缩包。
   File Created: `.github/workflows/release.yml`
+
+---
+
+### Decision (Code)
+
+[2025-06-02 13:42:51] - 创建 GitHub Actions 工作流用于多平台构建和发布
+
+**Rationale:**
+根据用户需求，为 Electron 应用 `daka-helper` 创建一个 CI/CD 工作流。该工作流将在推送到 `main` 分支或创建 `v*.*.*` 格式的标签时触发。它将使用 `electron-builder` 和 `pnpm` 在 Linux、Windows 和 macOS 上构建应用，并为 Android 进行交叉编译。所有构建产物最终将上传到 GitHub Release。
+
+**Details:**
+
+- 工作流文件: [` .github/workflows/release.yml`](.github/workflows/release.yml:0)
+- 触发条件: `push`到 `main`, `tags` `v*.*.*`
+- 构建矩阵: `ubuntu-latest` (Linux, Android), `macos-latest`, `windows-latest`
+- 包管理器: `pnpm`
+- 构建工具: `electron-builder`
+- Android 构建: 需要 Java 环境 (Temurin JDK 17)
+- 产物上传: 使用 `actions/upload-artifact` 和 `actions/download-artifact`
+- Release 创建: 使用 `softprops/action-gh-release`

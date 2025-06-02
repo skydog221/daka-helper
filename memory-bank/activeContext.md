@@ -41,3 +41,5 @@ Details:
 - 在 GitHub 仓库的 Settings -> Secrets and variables -> Actions 中添加名为 `GITHUB_TOKEN` 的 Personal Access Token (PAT) 密钥，并确保该 PAT 具有 `contents: write` 和 `packages: write` (如果需要发布到 GitHub Packages) 的权限。通常情况下，`secrets.GITHUB_TOKEN` 已经具有足够的权限来创建 Release 和上传构建产物，无需手动创建。
 - 推送一个符合 `v*.*.*` 格式的标签 (例如 `git tag v1.0.0` 然后 `git push origin v1.0.0`) 来触发工作流。
 - 检查 GitHub Actions 的运行状态和结果。
+
+* [2025-06-02 13:43:06] - 完成 GitHub Actions 工作流 [`release.yml`](.github/workflows/release.yml:0) 的创建，用于实现多平台（Linux, Windows, macOS, Android）构建和自动发布。使用 pnpm 和 electron-builder。
