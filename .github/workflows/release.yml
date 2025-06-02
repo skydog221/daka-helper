@@ -2,8 +2,8 @@ name: Release Electron App
 
 on:
   push:
-    tags:
-      - "v*.*.*" # 当 vX.Y.Z 格式的标签被推送时触发
+    branches:
+      - main
 
 jobs:
   release:
