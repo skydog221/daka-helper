@@ -18,6 +18,7 @@
 
 Web Demo A（Cloudflare CDN & Netlify）：(https://daka-helper.mbod.me/)[https://daka-helper.mbod.me/]
 Web Demo B（GitHub Pages）：[(https://mbod.github.io/daka-helper/)[https://mbod.github.io/daka-helper/]](https://skydog221.github.io/daka-helper/web-demo/)
+Web Demo C (Netlify only):[https://daka-helper.netlify.app/](https://daka-helper.netlify.app/)
 
 ## ✨ 功能特性
 
