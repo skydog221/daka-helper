@@ -16,6 +16,7 @@ This file provides a high-level overview of the project and the expected product
 - 多种导出格式支持（MP3、WAV 等）
 - 实时处理进度显示
 - 美观的用户界面
+- 生成一个用于网页 demo 展示的单文件 HTML 规范
 
 ## Overall Architecture
 

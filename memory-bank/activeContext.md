@@ -5,7 +5,7 @@ This file tracks the project's current status, including recent changes, current
 
 ## Current Focus
 
-开始实现打卡剪辑助手 Electron 应用的完整代码结构，包括主进程、渲染进程和音频处理模块。
+生成一个用于网页 demo 展示的单文件 HTML 规范，该规范将整合现有应用的 HTML、CSS 和 JavaScript 逻辑。
 
 ## Recent Changes
 
@@ -44,3 +44,6 @@ Details:
 
 * [2025-06-02 13:49:29] - 修改 GitHub Actions 工作流配置，将包管理器从 pnpm 更改为 yarn
 * [2025-06-02 13:43:06] - 完成 GitHub Actions 工作流 [`release.yml`](.github/workflows/release.yml:0) 的创建，用于实现多平台（Linux, Windows, macOS, Android）构建和自动发布。使用 pnpm 和 electron-builder。
+* [2025-06-07 20:43:38] - 完成单文件 HTML Demo 架构设计和文件整合。
+
+* 2025-06-07 21:01:11 - 更新 `demo.html` 文件，取消弹窗 HTML 中的 Markdown 语法，并将“demo 区别”改为“桌面版与网页 Demo 的区别”。

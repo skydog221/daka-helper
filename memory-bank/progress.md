@@ -55,3 +55,6 @@ Details: 已成功创建 GitHub Actions 工作流文件 `.github/workflows/relea
 
 * [2025-06-02 13:49:41] - [COMPLETED] 修改 GitHub Actions 工作流配置，将包管理器从 pnpm 更改为 yarn
 * [2025-06-02 13:43:16] - [COMPLETED] 配置 GitHub Actions 工作流 ([`.github/workflows/release.yml`](.github/workflows/release.yml:0))，用于多平台构建 (Linux, Windows, macOS, Android) 和自动发布。
+* [2025-06-07 20:43:38] - [COMPLETED] 设计并生成用于网页 demo 展示的单文件 HTML 架构。
+
+* 2025-06-07 21:01:19 - 完成 `demo.html` 文件中弹窗内容的修改，取消 Markdown 语法并将“demo 区别”改为“桌面版与网页 Demo 的区别”。

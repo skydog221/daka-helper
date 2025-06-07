@@ -82,3 +82,53 @@ Rationale:
 - 将 `pnpm install --frozen-lockfile` 改为 `yarn install --frozen-lockfile`
 - 将 `pnpm electron-builder` 改为 `yarn electron-builder`
 - Release 创建: 使用 `softprops/action-gh-release`
+
+---
+
+### Decision
+
+[2025-06-07 20:43:38] - 创建单文件 HTML Demo 架构
+
+**Rationale:**
+为了提供一个便捷的网页 demo 展示，将 Electron 应用的渲染进程 HTML、CSS 和 JavaScript 整合到一个独立的 HTML 文件中。这简化了部署和分享，并确保在浏览器环境中与 Electron 应用具有相同的逻辑和 UI 表现。
+
+**Implications/Details:**
+
+- 将 `src/renderer/styles.css` 内容内联到 `<style>` 标签中。
+- 将 `src/renderer/preload.js` 中 `window.utils` 的定义直接嵌入到 `<script>` 标签中，并确保其在 `app.js` 之前加载，以保证 `window.utils` 对象的兼容性。
+- 将 `src/renderer/app.js` 内容嵌入到另一个 `<script>` 标签中。
+- `app.js` 中对 `electronAPI` 的调用在浏览器环境中不再需要，因为 `app.js` 已经适配了 Web Audio API 和文件 API 进行纯前端处理。
+- `openOutputFolder` 函数在浏览器环境中将显示提示信息，而不是尝试打开本地文件夹。
+
+---
+
+### Decision
+
+[2025-06-07 20:59:08] - 为单文件 HTML Demo 添加 GitHub 仓库按钮和区别弹窗
+
+**Rationale:**
+根据用户反馈，为了增强 Demo 的可用性和信息透明度，添加了直接访问 GitHub 仓库的按钮，并提供了清晰的弹窗说明 Demo 版本与 Electron 版本的关键区别，帮助用户更好地理解其功能限制。
+
+**Implications/Details:**
+
+- 在 `footer` 中添加了“前往 GitHub 仓库”按钮，链接到 `https://github.com/skydog221/daka-helper`。
+- 在 `footer` 中添加了“Demo 区别”按钮，点击后显示一个模态弹窗。
+- 弹窗内容包括文件操作、音频编码和系统集成方面的区别说明。
+- 在 `app.js` 中新增了对这些新 DOM 元素的引用和事件监听器，以及 `showDiffModal` 和 `hideDiffModal` 函数来控制弹窗的显示与隐藏。
+
+---
+
+### Decision
+
+[2025-06-07 20:43:38] - 创建单文件 HTML Demo 架构
+
+**Rationale:**
+为了提供一个便捷的网页 demo 展示，将 Electron 应用的渲染进程 HTML、CSS 和 JavaScript 整合到一个独立的 HTML 文件中。这简化了部署和分享，并确保在浏览器环境中与 Electron 应用具有相同的逻辑和 UI 表现。
+
+**Implications/Details:**
+
+- 将 `src/renderer/styles.css` 内容内联到 `<style>` 标签中。
+- 将 `src/renderer/preload.js` 中 `window.utils` 的定义直接嵌入到 `<script>` 标签中，并确保其在 `app.js` 之前加载，以保证 `window.utils` 对象的兼容性。
+- 将 `src/renderer/app.js` 内容嵌入到另一个 `<script>` 标签中。
+- `app.js` 中对 `electronAPI` 的调用在浏览器环境中不再需要，因为 `app.js` 已经适配了 Web Audio API 和文件 API 进行纯前端处理。
+- `openOutputFolder` 函数在浏览器环境中将显示提示信息，而不是尝试打开本地文件夹。
