@@ -1,16 +1,23 @@
 # 打卡剪辑助手
 
 <p align="center">
+  <a href="https://github.com/skydog221">
+    <img src="https://img.shields.io/badge/Author-skydog221-red" alt="Author">
+  </a>
   <img src="https://img.shields.io/badge/Electron-36.3.2-blue" alt="Electron Version">
   <img src="https://img.shields.io/badge/License-MPL--2.0-green" alt="License">
   <img src="https://img.shields.io/badge/Version-1.0.0-orange" alt="Version">
+  <img src="https://api.netlify.com/api/v1/badges/5cdb1ee4-c545-494a-b7d5-b37294a4621b/deploy-status" alt="Netlify Status">
 </p>
 
 ## 📖 项目简介
 
 打卡剪辑助手是一款基于 Electron 开发的桌面应用程序，专门用于快速处理音频文件。它可以将音频文件重复拼接到指定的时间长度，非常适合需要制作固定时长音频内容的场景，如打卡、学习记录等。
 
-## Demo
+## 🚉 Demo
+
+Web Demo A（Cloudflare CDN & Netlify）：(https://daka-helper.mbod.me/)[https://daka-helper.mbod.me/]
+Web Demo B（GitHub Pages）：[(https://mbod.github.io/daka-helper/)[https://mbod.github.io/daka-helper/]](https://skydog221.github.io/daka-helper/web-demo/)
 
 ## ✨ 功能特性
 
