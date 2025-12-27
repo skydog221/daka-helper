@@ -5,212 +5,492 @@
 1. [项目概述](#项目概述)
 2. [架构设计](#架构设计)
 3. [核心模块说明](#核心模块说明)
-   - [主进程 (main.js)](#主进程-mainjs)
-   - [渲染进程 (src/renderer/)](#渲染进程-srcrenderer)
-   - [音频处理模块 (src/audio/audioProcessor.js)](#音频处理模块-srcaudioaudioprocessorjs)
-   - [预加载脚本 (src/renderer/preload.js)](#预加载脚本-srcrendererpreloadjs)
-4. [IPC 通信](#ipc-通信)
-   - [通信通道](#通信通道)
-   - [消息格式](#消息格式)
-5. [音频处理流程](#音频处理流程)
-6. [构建与打包](#构建与打包)
-7. [编码规范](#编码规范)
-8. [测试](#测试)
-9. [未来展望](#未来展望)
+4. [平台适配层](#平台适配层)
+5. [音频编码器](#音频编码器)
+6. [构建系统](#构建系统)
+7. [IPC 通信（Electron）](#ipc-通信electron)
+8. [编码规范](#编码规范)
+9. [测试](#测试)
+10. [未来展望](#未来展望)
 
 ## 1. 项目概述
 
-打卡剪辑助手是一个基于 Electron 的桌面应用程序，旨在帮助用户快速将音频文件重复拼接到指定的目标时长。它利用 Web Audio API 进行音频处理，提供了一个简洁直观的用户界面。
+打卡剪辑助手是一个跨平台音频处理应用，同时支持 **Electron 桌面版**和 **Web 浏览器版**。v2.0 版本采用统一架构设计，Electron 和 Web 版本共享同一套核心代码和 UI 组件。
+
+### 核心功能
+- 音频文件重复拼接到指定时长
+- 随机延长功能（0 到指定秒数之间随机）
+- 支持 WAV 和 MP3 两种输出格式
+- 支持多种输入格式（MP3、WAV、FLAC、M4A、OGG 等）
 
 ## 2. 架构设计
 
-项目采用标准的 Electron 应用架构，主要包含以下几个部分：
-
-- **主进程 ([`main.js`](../main.js:1))**:
-  - 负责应用程序的生命周期管理（创建、销毁窗口等）。
-  - 处理与操作系统相关的交互（如文件对话框、菜单）。
-  - 作为渲染进程与系统资源（如文件系统）之间的桥梁。
-  - 调用音频处理模块执行核心任务。
-- **渲染进程 ([`src/renderer/`](../src/renderer/))**:
-  - 负责用户界面的展示和交互逻辑。
-  - 由 HTML ([`index.html`](../src/renderer/index.html:1))、CSS ([`styles.css`](../src/renderer/styles.css:1)) 和 JavaScript ([`app.js`](../src/renderer/app.js:1)) 构成。
-  - 通过预加载脚本与主进程进行安全的 IPC 通信。
-- **音频处理模块 ([`src/audio/audioProcessor.js`](../src/audio/audioProcessor.js:1))**:
-  - 包含所有与音频处理相关的核心逻辑。
-  - 使用 Web Audio API 进行音频解码、拼接、编码。
-- **IPC (Inter-Process Communication)**:
-  - 主进程和渲染进程之间通过 IPC 通信来传递数据和调用功能。
-  - 使用 Electron 提供的 `ipcMain` 和 `ipcRenderer`模块。
+### 2.1 统一架构图
 
 ```mermaid
-graph LR
-    A[用户界面 (Renderer Process)] -- IPC --> B(主进程 Main Process)
-    B -- 调用 --> C{音频处理模块 (Web Audio API)}
-    C -- 返回结果 --> B
-    B -- IPC --> A
-    B -- 操作 --> D[文件系统/操作系统]
+graph TB
+    subgraph "用户界面层"
+        UI[src/ui/]
+        UI --> |HTML| index.html
+        UI --> |JS| app.js
+        UI --> |CSS| styles.css
+    end
+    
+    subgraph "核心模块层（平台无关）"
+        CORE[src/core/]
+        CORE --> AR[audio-repeater.js]
+        CORE --> TC[time-calculator.js]
+        CORE --> VA[validator.js]
+        CORE --> FD[format-detector.js]
+        CORE --> CO[constants.js]
+    end
+    
+    subgraph "编码器层"
+        ENC[src/encoders/]
+        ENC --> AE[audio-encoder.js]
+        AE --> WE[wav-encoder.js]
+        AE --> ME[mp3-encoder.js]
+    end
+    
+    subgraph "平台适配层"
+        ADP[src/adapters/]
+        ADP --> PD[platform-detector.js]
+        ADP --> FH[file-handler.js]
+        ADP --> CS[config-storage.js]
+    end
+    
+    subgraph "Electron 专用"
+        EL[Electron]
+        EL --> main.js
+        EL --> preload.js
+    end
+    
+    UI --> CORE
+    UI --> ENC
+    UI --> ADP
+    EL --> UI
 ```
+
+### 2.2 目录结构
+
+```
+src/
+├── core/                   # 核心模块（平台无关）
+│   ├── audio-repeater.js   # 音频重复拼接逻辑
+│   ├── time-calculator.js  # 时间计算工具
+│   ├── validator.js        # 输入验证
+│   ├── format-detector.js  # 格式检测
+│   └── constants.js        # 常量定义
+├── encoders/               # 音频编码器
+│   ├── audio-encoder.js    # 编码器统一接口
+│   ├── wav-encoder.js      # WAV 编码器
+│   └── mp3-encoder.js      # MP3 编码器 (lamejs)
+├── adapters/               # 平台适配层
+│   ├── platform-detector.js # 平台检测
+│   ├── file-handler.js     # 文件处理适配器
+│   └── config-storage.js   # 配置存储适配器
+├── ui/                     # 统一 UI
+│   ├── index.html
+│   ├── app.js
+│   └── styles.css
+└── renderer/               # Electron 专用
+    └── preload.js
+```
+
+### 2.3 设计原则
+
+1. **核心模块平台无关**：`src/core/` 下的模块不依赖任何平台特定 API
+2. **适配器模式**：通过 `src/adapters/` 抽象平台差异
+3. **单例模式**：`getFileHandler()` 和 `getConfigStorage()` 返回全局唯一实例
+4. **ES6 模块化**：使用 `import/export` 实现跨平台代码共享
 
 ## 3. 核心模块说明
 
-### 主进程 ([`main.js`](../main.js:1))
+### 3.1 audio-repeater.js
 
-- **主要职责**:
-  - 创建和管理 `BrowserWindow`。
-  - 设置应用程序菜单和快捷键。
-  - 监听渲染进程发送的 IPC 消息，并调用相应处理函数。
-  - 调用 [`audioProcessor.js`](../src/audio/audioProcessor.js:1) 中的函数处理音频。
-  - 将处理结果通过 IPC 返回给渲染进程。
-- **关键函数**:
-  - [`createWindow()`](../main.js:15) : 初始化主窗口。
-  - `ipcMain.handle('process-audio', ...)`: 处理音频的核心 IPC 监听器。
-  - `ipcMain.handle('select-file', ...)`: 打开文件选择对话框。
+音频重复拼接的核心逻辑。
 
-### 渲染进程 ([`src/renderer/`](../src/renderer/))
+```javascript
+import { AudioRepeater } from '../core/audio-repeater.js';
 
-- **[`index.html`](../src/renderer/index.html:1)**: 应用的 HTML 结构。
-- **[`styles.css`](../src/renderer/styles.css:1)**: 应用的 CSS 样式。
-- **[`app.js`](../src/renderer/app.js:1)**: 渲染进程的 JavaScript 逻辑。
-  - **主要职责**:
-    - 获取用户输入（文件、目标时长、格式等）。
-    - 校验用户输入。
-    - 通过 `window.electronAPI` 调用主进程功能。
-    - 更新 UI 状态（如进度条、结果显示）。
-  - **关键函数**:
-    - `handleFileSelect()`: 处理文件选择。
-    - `handleDragOver() / handleDrop()`: 处理文件拖拽。
-    - `processAudio()`: 发起音频处理请求。
-    - `updateProgress()`: 更新进度条。
+// 使用示例
+const resultBuffer = await AudioRepeater.repeatAudio(
+  sourceBuffer,      // AudioBuffer - 源音频
+  targetDuration,    // number - 目标时长（秒）
+  audioContext,      // AudioContext - Web Audio 上下文
+  (progress) => {    // 进度回调
+    console.log(`进度: ${progress}%`);
+  }
+);
+```
 
-### 音频处理模块 ([`src/audio/audioProcessor.js`](../src/audio/audioProcessor.js:1))
+**主要方法**：
+- `repeatAudio(sourceBuffer, targetDuration, audioContext, progressCallback)` - 将音频重复到目标时长
 
-- **主要职责**:
-  - 使用 Web Audio API (`AudioContext`) 解码上传的音频文件。
-  - 根据目标时长和随机延长选项，计算重复次数和最终时长。
-  - 将解码后的 `AudioBuffer` 进行拼接。
-  - 将拼接后的 `AudioBuffer` 编码为 WAV 格式。
-  - （未来）支持将 `AudioBuffer` 编码为其他格式（MP3, M4A 等）。
-- **关键函数**:
-  - [`processAudio(filePath, targetDuration, randomExtend, outputFormat)`](../src/audio/audioProcessor.js:8): 核心处理函数。
-  - [`decodeAudioData(arrayBuffer)`](../src/audio/audioProcessor.js:1): 将文件内容解码为 `AudioBuffer`。
-  - [`concatenateAudioBuffers(buffers)`](../src/audio/audioProcessor.js:1): 拼接多个 `AudioBuffer`。
-  - [`audioBufferToWAV(buffer)`](../src/audio/audioProcessor.js:1): 将 `AudioBuffer` 转换为 WAV 格式的 `Blob`。
+### 3.2 time-calculator.js
 
-### 预加载脚本 ([`src/renderer/preload.js`](../src/renderer/preload.js:1))
+时间计算和格式化工具。
 
-- **主要职责**:
-  - 在渲染进程的 Web 上下文中安全地暴露主进程的特定 API。
-  - 使用 `contextBridge.exposeInMainWorld` 方法。
-- **暴露的 API**:
-  - `window.electronAPI.selectFile()`: 调用主进程打开文件选择对话框。
-  - `window.electronAPI.processAudio(params)`: 调用主进程处理音频。
-  - `window.electronAPI.onUpdateProgress(callback)`: 注册进度更新回调。
+```javascript
+import { TimeCalculator } from '../core/time-calculator.js';
 
-## 4. IPC 通信
+// 格式化时长
+TimeCalculator.formatDuration(125);        // "2:05"
+TimeCalculator.formatDurationVerbose(125); // "2分5秒"
 
-### 通信通道
+// 计算扩展时长（随机延长）
+const extended = TimeCalculator.calculateExtendedDuration(600, 60);
+// 返回 600 到 660 之间的随机值
+```
 
-- `select-file`: 渲染进程请求主进程打开文件选择对话框。
-- `process-audio`: 渲染进程请求主进程处理音频。
-- `update-progress`: 主进程向渲染进程发送音频处理进度。
+**主要方法**：
+- `formatDuration(totalSeconds)` - 返回 `"M:SS"` 格式
+- `formatDurationVerbose(totalSeconds)` - 返回 `"X分X秒"` 格式
+- `calculateExtendedDuration(baseDuration, maxExtendSeconds)` - 随机延长
 
-### 消息格式
+### 3.3 validator.js
 
-#### `process-audio` 请求
+输入验证工具。
 
-```json
+```javascript
+import { Validator } from '../core/validator.js';
+
+// 验证文件
+const fileResult = Validator.validateFile(file);
+// { valid: true } 或 { valid: false, error: "错误信息" }
+
+// 验证音频缓冲区
+const bufferResult = Validator.validateAudioBuffer(buffer);
+
+// 验证目标时长
+const durationResult = Validator.validateTargetDuration(10, 30);
+// { valid: true, message: "10分30秒", duration: 630 }
+```
+
+### 3.4 constants.js
+
+应用常量定义。
+
+```javascript
+import { AUDIO_CONSTANTS, UI_CONSTANTS } from '../core/constants.js';
+
+// 音频相关常量
+AUDIO_CONSTANTS.SUPPORTED_FORMATS  // ['mp3', 'wav', 'flac', ...]
+AUDIO_CONSTANTS.MAX_FILE_SIZE      // 最大文件大小
+AUDIO_CONSTANTS.MP3_BITRATE        // MP3 比特率 (192)
+
+// UI 相关常量
+UI_CONSTANTS.DEFAULT_MINUTES       // 默认分钟数 (10)
+UI_CONSTANTS.DEFAULT_EXTEND_SECONDS // 默认延长秒数 (60)
+```
+
+## 4. 平台适配层
+
+### 4.1 platform-detector.js
+
+检测当前运行环境。
+
+```javascript
+import { PlatformDetector } from '../adapters/platform-detector.js';
+
+PlatformDetector.isElectron();  // true/false
+PlatformDetector.isWeb();       // true/false
+PlatformDetector.getPlatform(); // 'electron' 或 'web'
+
+// 检查功能支持
+PlatformDetector.hasFeature('fs');           // 文件系统
+PlatformDetector.hasFeature('localStorage'); // 本地存储
+PlatformDetector.hasFeature('audioContext'); // Web Audio API
+```
+
+### 4.2 file-handler.js
+
+文件处理适配器，为不同平台提供统一的文件操作接口。
+
+```javascript
+import { getFileHandler } from '../adapters/file-handler.js';
+
+const fileHandler = getFileHandler();
+
+// 保存音频文件
+await fileHandler.saveAudioFile(blob, filename);
+// - Electron: 打开保存对话框，写入文件系统
+// - Web: 触发浏览器下载
+```
+
+### 4.3 config-storage.js
+
+配置存储适配器，使用 localStorage 实现。
+
+```javascript
+import { getConfigStorage } from '../adapters/config-storage.js';
+
+const configStorage = getConfigStorage();
+
+// 保存配置
+configStorage.set('targetMinutes', 10);
+configStorage.set('outputFormat', 'wav');
+
+// 读取配置
+const minutes = configStorage.get('targetMinutes', 10); // 默认值 10
+
+// 获取所有配置
+const allConfig = configStorage.getAll();
+```
+
+## 5. 音频编码器
+
+### 5.1 audio-encoder.js
+
+编码器统一接口。
+
+```javascript
+import { AudioEncoder } from '../encoders/audio-encoder.js';
+
+// 编码为 WAV
+const wavBlob = await AudioEncoder.encode(audioBuffer, 'wav');
+
+// 编码为 MP3 (192kbps)
+const mp3Blob = await AudioEncoder.encode(audioBuffer, 'mp3', {
+  bitRate: 192
+});
+```
+
+### 5.2 wav-encoder.js
+
+WAV 格式编码器（无损）。
+
+```javascript
+import { WavEncoder } from '../encoders/wav-encoder.js';
+
+const wavBlob = await WavEncoder.encode(audioBuffer);
+```
+
+### 5.3 mp3-encoder.js
+
+MP3 格式编码器，基于 lamejs 库。
+
+```javascript
+import { Mp3Encoder } from '../encoders/mp3-encoder.js';
+
+const mp3Blob = await Mp3Encoder.encode(audioBuffer, {
+  bitRate: 192  // 可选，默认 192kbps
+});
+```
+
+**注意**：lamejs 库通过 CDN 加载（`index.html` 中的 `<script>` 标签）。
+
+## 6. 构建系统
+
+项目使用 Vite 作为构建工具。
+
+### 6.1 构建命令
+
+```bash
+# 开发模式
+yarn dev
+
+# 构建 Web 版本（单文件 HTML）
+yarn build:web
+
+# 构建 Electron 版本
+yarn build:electron
+
+# 构建全部
+yarn build
+```
+
+### 6.2 Vite 配置
+
+**vite.config.js**（Electron）：
+```javascript
+export default defineConfig({
+  root: 'src/ui',
+  build: {
+    outDir: '../../dist/electron',
+    rollupOptions: {
+      input: 'src/ui/index.html'
+    }
+  }
+});
+```
+
+**vite.config.web.js**（Web 单文件）：
+```javascript
+import { viteSingleFile } from 'vite-plugin-singlefile';
+
+export default defineConfig({
+  plugins: [viteSingleFile()],
+  root: 'src/ui',
+  build: {
+    outDir: '../../dist/web'
+  }
+});
+```
+
+### 6.3 输出文件
+
+- **Web 版本**：`dist/web/index.html`（单个 HTML 文件，包含所有 CSS 和 JS）
+- **Electron 版本**：`dist/` 目录下的安装包
+
+## 7. IPC 通信（Electron）
+
+### 7.1 可用通道
+
+| 通道名 | 方向 | 用途 |
+|--------|------|------|
+| `select-audio-file` | 渲染 → 主 | 打开文件选择对话框 |
+| `open-output-folder` | 渲染 → 主 | 在文件管理器中显示文件 |
+
+### 7.2 preload.js 暴露的 API
+
+```javascript
+// 在渲染进程中使用
+window.electronAPI.selectAudioFile();
+window.electronAPI.openOutputFolder(filePath);
+```
+
+### 7.3 消息格式
+
+**select-audio-file 响应**：
+```javascript
 {
-  "filePath": "C:/path/to/audio.mp3",
-  "targetDuration": 600, // 秒
-  "randomExtend": true,
-  "outputFormat": "wav"
+  success: true,
+  filePath: "C:/path/to/audio.mp3",
+  fileName: "audio.mp3",
+  fileSize: 1234567
 }
 ```
 
-#### `process-audio` 响应 (成功)
+## 8. 编码规范
 
-```json
-{
-  "success": true,
-  "outputPath": "C:/path/to/output/processed_audio_timestamp.wav",
-  "fileName": "processed_audio_timestamp.wav"
+### 8.1 JavaScript 规范
+
+- **模块化**：使用 ES6 `import/export`
+- **类名**：PascalCase（如 `AudioRepeater`）
+- **方法/变量**：camelCase（如 `repeatAudio`）
+- **常量**：UPPER_SNAKE_CASE（如 `MAX_FILE_SIZE`）
+- **文件名**：kebab-case（如 `audio-repeater.js`）
+
+### 8.2 注释规范
+
+使用 JSDoc 风格注释：
+
+```javascript
+/**
+ * 将音频重复到指定时长
+ * @param {AudioBuffer} sourceBuffer - 源音频缓冲区
+ * @param {number} targetDuration - 目标时长（秒）
+ * @param {AudioContext} audioContext - Web Audio 上下文
+ * @param {Function} progressCallback - 进度回调函数
+ * @returns {Promise<AudioBuffer>} 处理后的音频缓冲区
+ */
+static async repeatAudio(sourceBuffer, targetDuration, audioContext, progressCallback) {
+  // ...
 }
 ```
 
-#### `process-audio` 响应 (失败)
+### 8.3 错误处理
 
-```json
-{
-  "success": false,
-  "error": "错误信息描述"
+```javascript
+try {
+  const result = await someAsyncOperation();
+} catch (error) {
+  console.error('操作失败:', error.message);
+  // 向用户显示友好的错误信息
+  showError(`处理失败: ${error.message}`);
 }
 ```
 
-#### `update-progress` 消息
+## 9. 测试
 
-```json
-{
-  "percent": 50, // 0-100
-  "message": "正在处理..."
-}
+### 9.1 手动测试清单
+
+- [ ] Web 版本在 Chrome/Firefox/Safari 中正常工作
+- [ ] Electron 版本在 Windows/macOS 中正常工作
+- [ ] 各种输入格式（MP3/WAV/FLAC/M4A/OGG）正确解码
+- [ ] WAV 输出音质正常
+- [ ] MP3 输出音质正常，文件可在各播放器播放
+- [ ] 随机延长功能在 0 到指定秒数范围内正常工作
+- [ ] 配置保存和恢复正常
+- [ ] 文件拖拽上传正常
+- [ ] 进度条显示正确
+
+### 9.2 测试文件
+
+项目根目录下有以下测试文件（开发用）：
+- `test-core-modules.html` - 核心模块测试
+- `test-adapters.html` - 适配器测试
+- `test-mp3-encoder.html` - MP3 编码器测试
+
+## 10. 未来展望
+
+### 10.1 已实现
+- ✅ 统一 Electron 和 Web 架构
+- ✅ 真正的 MP3 编码（lamejs）
+- ✅ 平台适配层抽象
+- ✅ 单文件 HTML 构建
+
+### 10.2 待实现
+- 🔲 批量文件处理
+- 🔲 音频波形预览
+- 🔲 淡入淡出效果
+- 🔲 自定义 MP3 比特率
+- 🔲 更多输出格式（OGG、FLAC）
+- 🔲 国际化（i18n）
+- 🔲 自动化单元测试
+
+---
+
+## 附录：快速参考
+
+### 模块导入
+
+```javascript
+// 核心模块
+import { AudioRepeater } from '../core/audio-repeater.js';
+import { TimeCalculator } from '../core/time-calculator.js';
+import { Validator } from '../core/validator.js';
+import { FormatDetector } from '../core/format-detector.js';
+import { AUDIO_CONSTANTS, UI_CONSTANTS } from '../core/constants.js';
+
+// 编码器
+import { AudioEncoder } from '../encoders/audio-encoder.js';
+
+// 适配器
+import { PlatformDetector } from '../adapters/platform-detector.js';
+import { getFileHandler } from '../adapters/file-handler.js';
+import { getConfigStorage } from '../adapters/config-storage.js';
 ```
 
-## 5. 音频处理流程
+### 典型处理流程
 
-1.  **用户选择文件**: 渲染进程通过 IPC `select-file` 请求主进程打开文件对话框，或用户拖拽文件。
-2.  **文件传递**: 文件路径被发送到主进程。
-3.  **参数设置**: 用户在渲染进程设置目标时长、格式、是否随机延长。
-4.  **处理请求**: 渲染进程通过 IPC `process-audio` 将文件路径和参数发送给主进程。
-5.  **音频读取**: 主进程读取音频文件内容。
-6.  **音频解码**: [`audioProcessor.js`](../src/audio/audioProcessor.js:1) 使用 `AudioContext.decodeAudioData()` 将文件解码为 `AudioBuffer`。
-7.  **计算参数**: 根据目标时长、源音频时长和随机延长计算重复次数和最终长度。
-8.  **音频拼接**:
-    - 根据重复次数，复制 `AudioBuffer`。
-    - 如果需要裁剪，则裁剪最后一个 `AudioBuffer`。
-    - 使用 `AudioContext.createBuffer()` 创建一个新的 `AudioBuffer`，并将所有片段数据复制进去。
-9.  **随机延长 (如果启用)**:
-    - 生成 0-60 秒的随机静音 `AudioBuffer`。
-    - 将其拼接到主音频末尾。
-10. **编码输出**:
-    - 目前：使用 [`audioBufferToWAV()`](../src/audio/audioProcessor.js:1) 将最终的 `AudioBuffer` 转换为 WAV 格式的 `Blob`。
-    - 主进程将 `Blob` 数据保存为文件。
-11. **进度更新**: 主进程在处理过程中通过 IPC `update-progress` 向渲染进程发送进度信息。
-12. **结果返回**: 主进程将处理结果（成功的文件路径或错误信息）通过 IPC 返回给渲染进程。
-13. **用户反馈**: 渲染进程显示处理结果，并触发文件下载。
+```javascript
+// 1. 加载音频文件
+const arrayBuffer = await file.arrayBuffer();
+const audioContext = new AudioContext();
+const sourceBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
-## 6. 构建与打包
+// 2. 验证输入
+const validation = Validator.validateAudioBuffer(sourceBuffer);
+if (!validation.valid) {
+  throw new Error(validation.error);
+}
 
-- 使用 [`electron-builder`](https://www.electron.build/) 进行应用的打包和分发。
-- 配置文件：[`electron-builder.json`](../electron-builder.json:1)
-- **构建命令**:
-  - `yarn build`: 根据 [`electron-builder.json`](../electron-builder.json:1) 中的配置构建。通常会构建当前操作系统的安装包。
-- **输出目录**: `dist/`
-- 如果使用 Github Action，请确保已设置 repo secrets：`GH_TOKEN`为具有仓库完全访问权限（读写、发布版）的 GitHub Token。
+// 3. 计算目标时长
+let targetDuration = minutes * 60 + seconds;
+if (enableExtend) {
+  targetDuration = TimeCalculator.calculateExtendedDuration(targetDuration, maxExtendSeconds);
+}
 
-## 7. 编码规范
+// 4. 音频处理
+const resultBuffer = await AudioRepeater.repeatAudio(
+  sourceBuffer, targetDuration, audioContext, updateProgress
+);
 
-- JavaScript: ESLint (推荐配置 StandardJS 或 Airbnb)
-- 代码风格: Prettier
-- 命名:
-  - 变量和函数: camelCase (`myVariable`, `calculateTotal`)
-  - 类和构造函数: PascalCase (`AudioProcessor`)
-  - 常量: UPPER_CASE_SNAKE_CASE (`MAX_LENGTH`)
-- 注释: JSDoc 风格注释关键函数和模块。
+// 5. 编码输出
+const blob = await AudioEncoder.encode(resultBuffer, format);
 
-## 8. 测试
-
-目前项目缺乏自动化测试。未来可以考虑引入：
-
-- **单元测试**: 使用 Jest 或 Mocha 测试核心函数，特别是 [`audioProcessor.js`](../src/audio/audioProcessor.js:1) 中的逻辑。
-- **集成测试**: 测试主进程和渲染进程之间的 IPC 通信。
-- **端到端测试**: 使用 Spectron 或 Playwright 测试完整的应用流程。
-
-## 9. 未来展望
-
-- **真正的多格式导出**: 集成 FFmpeg (通过 fluent-ffmpeg 或 wasm 版本) 来支持 MP3, M4A 等格式的编码，而不仅仅是 WAV 包装。
-- **音频预览**: 在上传后提供音频波形预览和播放功能。
-- **更精细的拼接控制**: 允许用户设置淡入淡出效果，以减少拼接痕迹。
-- **批量处理**: 支持一次处理多个文件或多个配置。
-- **国际化 (i18n)**: 支持多种语言界面。
-- **性能优化**: 对大型文件和超长目标时长的处理进行优化。
-- **更完善的错误处理和用户反馈**。
+// 6. 保存文件
+const fileHandler = getFileHandler();
+await fileHandler.saveAudioFile(blob, filename);

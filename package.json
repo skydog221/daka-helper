@@ -1,6 +1,6 @@
 {
   "name": "daka-helper",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "音频打卡助手！快速重复拼接音频到指定时间",
   "main": "main.js",
   "scripts": {
