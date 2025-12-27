@@ -14,11 +14,11 @@
 
 打卡剪辑助手是一款基于 Electron 开发的桌面应用程序，专门用于快速处理音频文件。它可以将音频文件重复拼接到指定的时间长度，非常适合需要制作固定时长音频内容的场景，如打卡、学习记录等。
 
-## 🚉 Demo
+## 🚉 Web Version
 
-Web Demo A（Cloudflare CDN & Netlify）：(https://daka-helper.mbod.me/)[https://daka-helper.mbod.me/]
-Web Demo B（GitHub Pages）：[(https://mbod.github.io/daka-helper/)[https://mbod.github.io/daka-helper/]](https://skydog221.github.io/daka-helper/web-demo/)
-Web Demo C (Netlify only):[https://daka-helper.netlify.app/](https://daka-helper.netlify.app/)
+Web Version A（Cloudflare CDN & Netlify）：(https://daka-helper.mbod.me/)[https://daka-helper.mbod.me/]
+Web Version B（GitHub Pages）：[(https://mbod.github.io/daka-helper/)[https://mbod.github.io/daka-helper/]](https://skydog221.github.io/daka-helper/web-demo/)
+Web Version C (Netlify only):[https://daka-helper.netlify.app/](https://daka-helper.netlify.app/)
 
 ## ✨ 功能特性
 

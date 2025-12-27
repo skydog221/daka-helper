@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>统一 UI 测试 - 打卡剪辑助手</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .test-container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      .test-header {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      }
+
+      .test-header h1 {
+        color: #667eea;
+        margin-bottom: 10px;
+      }
+
+      .test-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-bottom: 20px;
+      }
+
+      .test-card {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      }
+
+      .test-card h3 {
+        color: #333;
+        margin-bottom: 15px;
+        border-bottom: 2px solid #667eea;
+        padding-bottom: 10px;
+      }
+
+      .test-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid #eee;
+      }
+
+      .test-item:last-child {
+        border-bottom: none;
+      }
+
+      .test-status {
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 0.9rem;
+        font-weight: 600;
+      }
+
+      .status-pending {
+        background: #ffc107;
+        color: #333;
+      }
+
+      .status-pass {
+        background: #28a745;
+        color: white;
+      }
+
+      .status-fail {
+        background: #dc3545;
+        color: white;
+      }
+
+      .run-tests-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 15px 40px;
+        border-radius: 30px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+        display: block;
+        margin: 20px auto;
+      }
+
+      .run-tests-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+      }
+
+      .test-results {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-top: 20px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        display: none;
+      }
+
+      .test-results.show {
+        display: block;
+      }
+
+      .result-summary {
+        display: flex;
+        justify-content: space-around;
+        margin-bottom: 20px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 10px;
+      }
+
+      .summary-item {
+        text-align: center;
+      }
+
+      .summary-number {
+        font-size: 2rem;
+        font-weight: bold;
+        margin-bottom: 5px;
+      }
+
+      .summary-label {
+        color: #666;
+        font-size: 0.9rem;
+      }
+
+      .app-frame {
+        background: white;
+        border-radius: 15px;
+        padding: 0;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      }
+
+      .app-frame iframe {
+        width: 100%;
+        height: 800px;
+        border: none;
+      }
+
+      .log-output {
+        background: #1e1e1e;
+        color: #d4d4d4;
+        padding: 15px;
+        border-radius: 10px;
+        font-family: "Courier New", monospace;
+        font-size: 0.9rem;
+        max-height: 300px;
+        overflow-y: auto;
+        margin-top: 15px;
+      }
+
+      .log-entry {
+        padding: 5px 0;
+        border-bottom: 1px solid #333;
+      }
+
+      .log-entry:last-child {
+        border-bottom: none;
+      }
+
+      .log-info {
+        color: #4fc3f7;
+      }
+
+      .log-success {
+        color: #81c784;
+      }
+
+      .log-error {
+        color: #e57373;
+      }
+
+      .log-warn {
+        color: #ffb74d;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="test-container">
+      <!-- 测试头部 -->
+      <div class="test-header">
+        <h1>🧪 统一 UI 测试套件</h1>
+        <p>测试 <code>src/ui/</code> 统一架构的完整功能</p>
+      </div>
+
+      <!-- 测试计划 -->
+      <div class="test-grid">
+        <!-- 模块加载测试 -->
+        <div class="test-card">
+          <h3>📦 模块加载测试</h3>
+          <div class="test-item">
+            <span>核心模块加载</span>
+            <span class="test-status status-pending" id="status-core-modules">待测试</span>
+          </div>
+          <div class="test-item">
+            <span>编码器模块加载</span>
+            <span class="test-status status-pending" id="status-encoders">待测试</span>
+          </div>
+          <div class="test-item">
+            <span>适配器模块加载</span>
+            <span class="test-status status-pending" id="status-adapters">待测试</span>
+          </div>
+          <div class="test-item">
+            <span>lamejs 加载</span>
+            <span class="test-status status-pending" id="status-lamejs">待测试</span>
+          </div>
+        </div>
+
+        <!-- UI 功能测试 -->
+        <div class="test-card">
+          <h3>🎨 UI 功能测试</h3>
+          <div class="test-item">
+            <span>界面初始化</span>
+            <span class="test-status status-pending" id="status-ui-init">待测试</span>
+          </div>
+          <div class="test-item">
+            <span>文件选择功能</span>
+            <span class="test-status status-pending" id="status-file-select">待测试</span>
+          </div>
+          <div class="test-item">
+            <span>时间输入验证</span>
+            <span class="test-status status-pending" id="status-time-input">待测试</span>
+          </div>
+          <div class="test-item">
+            <span>格式选择器</span>
+            <span class="test-status status-pending" id="status-format-select">待测试</span>
+          </div>
+        </div>
+
+        <!-- 平台适配测试 -->
+        <div class="test-card">
+          <h3>🔧 平台适配测试</h3>
+          <div class="test-item">
+            <span>平台检测</span>
+            <span class="test-status status-pending" id="status-platform-detect">待测试</span>
+          </div>
+          <div class="test-item">
+            <span>配置存储</span>
+            <span class="test-status status-pending" id="status-config-storage">待测试</span>
+          </div>
+          <div class="test-item">
+            <span>文件处理</span>
+            <span class="test-status status-pending" id="status-file-handler">待测试</span>
+          </div>
+        </div>
+
+        <!-- 核心算法测试 -->
+        <div class="test-card">
+          <h3>⚙️ 核心算法测试</h3>
+          <div class="test-item">
+            <span>时间计算</span>
+            <span class="test-status status-pending" id="status-time-calc">待测试</span>
+          </div>
+          <div class="test-item">
+            <span>随机延长逻辑</span>
+            <span class="test-status status-pending" id="status-random-extend">待测试</span>
+          </div>
+          <div class="test-item">
+            <span>输入验证</span>
+            <span class="test-status status-pending" id="status-validation">待测试</span>
+          </div>
+          <div class="test-item">
+            <span>格式检测</span>
+            <span class="test-status status-pending" id="status-format-detect">待测试</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 运行测试按钮 -->
+      <button class="run-tests-btn" onclick="runAllTests()">
+        🚀 运行所有测试
+      </button>
+
+      <!-- 测试结果摘要 -->
+      <div class="test-results" id="testResults">
+        <h2>测试结果</h2>
+        <div class="result-summary">
+          <div class="summary-item">
+            <div class="summary-number" style="color: #28a745" id="passCount">0</div>
+            <div class="summary-label">通过</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-number" style="color: #dc3545" id="failCount">0</div>
+            <div class="summary-label">失败</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-number" style="color: #667eea" id="totalCount">0</div>
+            <div class="summary-label">总计</div>
+          </div>
+        </div>
+        <div class="log-output" id="logOutput"></div>
+      </div>
+
+      <!-- 应用预览 -->
+      <div class="test-card" style="margin-top: 20px;">
+        <h3>📱 应用预览</h3>
+        <div class="app-frame">
+          <iframe src="src/ui/index.html" id="appFrame"></iframe>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      // 测试结果存储
+      const testResults = {
+        passed: 0,
+        failed: 0,
+        total: 0
+      };
+
+      // 日志输出
+      function log(message, type = 'info') {
+        const logOutput = document.getElementById('logOutput');
+        const entry = document.createElement('div');
+        entry.className = `log-entry log-${type}`;
+        entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+        logOutput.appendChild(entry);
+        logOutput.scrollTop = logOutput.scrollHeight;
+      }
+
+      // 更新测试状态
+      function updateStatus(testId, passed, message = '') {
+        const element = document.getElementById(`status-${testId}`);
+        element.className = `test-status ${passed ? 'status-pass' : 'status-fail'}`;
+        element.textContent = passed ? '✓ 通过' : '✗ 失败';
+        
+        testResults.total++;
+        if (passed) {
+          testResults.passed++;
+          log(`✓ ${testId}: ${message || '测试通过'}`, 'success');
+        } else {
+          testResults.failed++;
+          log(`✗ ${testId}: ${message || '测试失败'}`, 'error');
+        }
+        
+        updateSummary();
+      }
+
+      // 更新摘要
+      function updateSummary() {
+        document.getElementById('passCount').textContent = testResults.passed;
+        document.getElementById('failCount').textContent = testResults.failed;
+        document.getElementById('totalCount').textContent = testResults.total;
+      }
+
+      // 运行所有测试
+      window.runAllTests = async function() {
+        // 重置
+        testResults.passed = 0;
+        testResults.failed = 0;
+        testResults.total = 0;
+        document.getElementById('logOutput').innerHTML = '';
+        document.getElementById('testResults').classList.add('show');
+        
+        log('开始运行测试套件...', 'info');
+        
+        // 模块加载测试
+        await testModuleLoading();
+        
+        // UI 功能测试
+        await testUIFunctions();
+        
+        // 平台适配测试
+        await testPlatformAdapters();
+        
+        // 核心算法测试
+        await testCoreAlgorithms();
+        
+        log(`测试完成！通过: ${testResults.passed}, 失败: ${testResults.failed}`, 'info');
+      };
+
+      // 1. 模块加载测试
+      async function testModuleLoading() {
+        log('=== 模块加载测试 ===', 'info');
+        
+        // 测试核心模块
+        try {
+          const { TimeCalculator } = await import('./src/core/time-calculator.js');
+          const { Validator } = await import('./src/core/validator.js');
+          const { AudioRepeater } = await import('./src/core/audio-repeater.js');
+          const { FormatDetector } = await import('./src/core/format-detector.js');
+          
+          updateStatus('core-modules', 
+            TimeCalculator && Validator && AudioRepeater && FormatDetector,
+            '所有核心模块加载成功'
+          );
+        } catch (error) {
+          updateStatus('core-modules', false, error.message);
+        }
+        
+        // 测试编码器模块
+        try {
+          const { WavEncoder } = await import('./src/encoders/wav-encoder.js');
+          const { Mp3Encoder } = await import('./src/encoders/mp3-encoder.js');
+          const { AudioEncoder } = await import('./src/encoders/audio-encoder.js');
+          
+          updateStatus('encoders', 
+            WavEncoder && Mp3Encoder && AudioEncoder,
+            '所有编码器模块加载成功'
+          );
+        } catch (error) {
+          updateStatus('encoders', false, error.message);
+        }
+        
+        // 测试适配器模块
+        try {
+          const { PlatformDetector } = await import('./src/adapters/platform-detector.js');
+          const { getConfigStorage } = await import('./src/adapters/config-storage.js');
+          const { getFileHandler } = await import('./src/adapters/file-handler.js');
+          
+          updateStatus('adapters', 
+            PlatformDetector && getConfigStorage && getFileHandler,
+            '所有适配器模块加载成功'
+          );
+        } catch (error) {
+          updateStatus('adapters', false, error.message);
+        }
+        
+        // 测试 lamejs
+        updateStatus('lamejs', 
+          typeof window.lamejs !== 'undefined',
+          window.lamejs ? 'lamejs 加载成功' : 'lamejs 未加载'
+        );
+      }
+
+      // 2. UI 功能测试
+      async function testUIFunctions() {
+        log('=== UI 功能测试 ===', 'info');
+        
+        const iframe = document.getElementById('appFrame');
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+        
+        // 等待 iframe 加载
+        await new Promise(resolve => {
+          if (iframe.contentWindow.document.readyState === 'complete') {
+            resolve();
+          } else {
+            iframe.onload = resolve;
+          }
+        });
+        
+        // 测试界面初始化
+        const requiredElements = [
+          'fileUploadArea',
+          'selectFileBtn',
+          'targetMinutes',
+          'targetSeconds',
+          'randomExtend',
+          'randomRange',
+          'outputFormat',
+          'processBtn'
+        ];
+        
+        const allElementsExist = requiredElements.every(id => 
+          iframeDoc.getElementById(id) !== null
+        );
+        
+        updateStatus('ui-init', allElementsExist, 
+          allElementsExist ? '所有必需元素存在' : '缺少必需元素'
+        );
+        
+        // 测试文件选择功能
+        const selectBtn = iframeDoc.getElementById('selectFileBtn');
+        updateStatus('file-select', 
+          selectBtn !== null && selectBtn.onclick !== undefined,
+          '文件选择按钮可用'
+        );
+        
+        // 测试时间输入
+        const minutesInput = iframeDoc.getElementById('targetMinutes');
+        const secondsInput = iframeDoc.getElementById('targetSeconds');
+        updateStatus('time-input', 
+          minutesInput && secondsInput && 
+          minutesInput.type === 'number' && secondsInput.type === 'number',
+          '时间输入字段正确配置'
+        );
+        
+        // 测试格式选择器
+        const formatSelect = iframeDoc.getElementById('outputFormat');
+        const options = Array.from(formatSelect.options).map(opt => opt.value);
+        updateStatus('format-select', 
+          options.includes('mp3') && options.includes('wav') && options.length === 2,
+          `格式选项: ${options.join(', ')}`
+        );
+      }
+
+      // 3. 平台适配测试
+      async function testPlatformAdapters() {
+        log('=== 平台适配测试 ===', 'info');
+        
+        try {
+          const { PlatformDetector } = await import('./src/adapters/platform-detector.js');
+          const platformInfo = PlatformDetector.getPlatformInfo();
+          
+          updateStatus('platform-detect', 
+            platformInfo && platformInfo.platform,
+            `检测到平台: ${platformInfo.platform}`
+          );
+        } catch (error) {
+          updateStatus('platform-detect', false, error.message);
+        }
+        
+        try {
+          const { getConfigStorage } = await import('./src/adapters/config-storage.js');
+          const config = getConfigStorage();
+          
+          // 测试保存和读取
+          config.set('test-key', 'test-value');
+          const value = config.get('test-key');
+          config.set('test-key', null); // 清理
+          
+          updateStatus('config-storage', 
+            value === 'test-value',
+            '配置存储读写正常'
+          );
+        } catch (error) {
+          updateStatus('config-storage', false, error.message);
+        }
+        
+        try {
+          const { getFileHandler } = await import('./src/adapters/file-handler.js');
+          const fileHandler = getFileHandler();
+          
+          updateStatus('file-handler', 
+            fileHandler && typeof fileHandler.validateFileType === 'function',
+            '文件处理器初始化成功'
+          );
+        } catch (error) {
+          updateStatus('file-handler', false, error.message);
+        }
+      }
+
+      // 4. 核心算法测试
+      async function testCoreAlgorithms() {
+        log('=== 核心算法测试 ===', 'info');
+        
+        // 时间计算测试
+        try {
+          const { TimeCalculator } = await 

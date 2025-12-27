@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>打卡剪辑助手 - Demo</title>
+    <title>打卡剪辑助手 - Web Version</title>
     <style>
       /* 全局样式 */
       * {
@@ -190,8 +190,30 @@
         gap: 15px;
       }
 
-      .time-input-group input {
-        flex: 0 0 150px;
+      .time-input-field {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 5px;
+      }
+
+      .time-label {
+        font-size: 0.85rem;
+        color: #666;
+        font-weight: 500;
+      }
+
+      .time-input-field input {
+        width: 80px;
+        text-align: center;
+      }
+
+      .time-separator {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #667eea;
+        margin: 0 5px;
+        padding-top: 20px;
       }
 
       .time-hint,
@@ -620,15 +642,31 @@
 
           <!-- 目标时间设置 -->
           <div class="setting-group">
-            <label for="targetTime">目标时长</label>
+            <label>目标时长</label>
             <div class="time-input-group">
-              <input
-                type="text"
-                id="targetTime"
-                placeholder="MM:SS 或 HH:MM:SS"
-                value="10:00"
-              />
-              <span class="time-hint">格式：分:秒 或 时:分:秒</span>
+              <div class="time-input-field">
+                <label for="targetMinutes" class="time-label">分钟</label>
+                <input
+                  type="number"
+                  id="targetMinutes"
+                  min="0"
+                  max="999"
+                  value="10"
+                  placeholder="0"
+                />
+              </div>
+              <span class="time-separator">:</span>
+              <div class="time-input-field">
+                <label for="targetSeconds" class="time-label">秒</label>
+                <input
+                  type="number"
+                  id="targetSeconds"
+                  min="0"
+                  max="59"
+                  value="0"
+                  placeholder="0"
+                />
+              </div>
             </div>
           </div>
 
@@ -730,8 +768,8 @@
       <!-- 区别弹窗 -->
       <div class="modal-overlay" id="diffModalOverlay" style="display: none">
         <div class="modal-content">
-          <h3>桌面版与网页Demo的区别</h3>
-          <p>此 Demo 版本是纯前端实现，主要区别在于：</p>
+          <h3>桌面版与网页版的区别</h3>
+          <p>此网页版本是纯前端实现，主要区别在于：</p>
           <ul>
             <li>
               文件操作：
@@ -758,7 +796,7 @@
             前往 GitHub 仓库
           </button>
           <button class="diff-btn" id="showDiffBtn">
-            桌面版与网页Demo的区别
+            桌面版与网页版的区别
           </button>
         </div>
       </footer>
@@ -871,7 +909,8 @@
         fileFormat: document.getElementById("fileFormat"),
         changeFileBtn: document.getElementById("changeFileBtn"),
 
-        targetTime: document.getElementById("targetTime"),
+        targetMinutes: document.getElementById("targetMinutes"),
+        targetSeconds: document.getElementById("targetSeconds"),
         randomExtend: document.getElementById("randomExtend"),
         randomRangeGroup: document.getElementById("randomRangeGroup"),
         randomRange: document.getElementById("randomRange"),
@@ -923,7 +962,8 @@
 
         // 设置相关
         elements.randomExtend.addEventListener("change", toggleRandomRange);
-        elements.targetTime.addEventListener("input", validateTimeInput);
+        elements.targetMinutes.addEventListener("input", updateUI);
+        elements.targetSeconds.addEventListener("input", updateUI);
 
         // 处理按钮
         elements.processBtn.addEventListener("click", processAudio);
@@ -1079,21 +1119,6 @@
         }
       }
 
-      /**
-       * 验证时间输入格式
-       */
-      function validateTimeInput() {
-        const timeValue = elements.targetTime.value;
-        const isValid = window.utils.isValidTimeFormat(timeValue);
-
-        if (timeValue && !isValid) {
-          elements.targetTime.style.borderColor = "#dc3545";
-        } else {
-          elements.targetTime.style.borderColor = "#e9ecef";
-        }
-
-        updateUI();
-      }
 
       /**
        * 处理音频文件
@@ -1116,9 +1141,9 @@
           updateUI();
 
           // 获取目标时长
-          const targetSeconds = window.utils.parseTime(
-            elements.targetTime.value
-          );
+          const minutes = parseInt(elements.targetMinutes.value) || 0;
+          const seconds = parseInt(elements.targetSeconds.value) || 0;
+          const targetSeconds = minutes * 60 + seconds;
 
           // 计算随机延长
           let randomExtra = 0;
@@ -1358,26 +1383,17 @@
           return { valid: false, message: "请先选择音频文件" };
         }
 
-        const timeValue = elements.targetTime.value.trim();
-        if (!timeValue) {
-          return { valid: false, message: "请输入目标时长" };
-        }
+        const minutes = parseInt(elements.targetMinutes.value) || 0;
+        const seconds = parseInt(elements.targetSeconds.value) || 0;
+        const targetSeconds = minutes * 60 + seconds;
 
-        if (!window.utils.isValidTimeFormat(timeValue)) {
-          return {
-            valid: false,
-            message: "时间格式不正确，请使用 MM:SS 或 HH:MM:SS 格式",
-          };
-        }
-
-        const targetSeconds = window.utils.parseTime(timeValue);
         if (targetSeconds <= 0) {
           return { valid: false, message: "目标时长必须大于 0" };
         }
 
-        if (targetSeconds > 86400) {
-          // 24小时
-          return { valid: false, message: "目标时长不能超过 24 小时" };
+        if (targetSeconds > 59940) {
+          // 999分钟 = 59940秒
+          return { valid: false, message: "目标时长不能超过 999 分钟" };
         }
 
         return { valid: true };
@@ -1485,7 +1501,8 @@
         hideProgress();
 
         // 重置表单
-        elements.targetTime.value = "10:00";
+        elements.targetMinutes.value = "10";
+        elements.targetSeconds.value = "0";
         elements.randomExtend.checked = true; // 默认启用随机延长
         elements.randomRange.value = "30";
         elements.outputFormat.value = "m4a"; // 默认使用 M4A 格式
@@ -1518,12 +1535,15 @@
         }
 
         // 更新处理按钮状态
+        const minutes = parseInt(elements.targetMinutes.value) || 0;
+        const seconds = parseInt(elements.targetSeconds.value) || 0;
+        const targetSeconds = minutes * 60 + seconds;
+        
         const canProcess =
           appState.selectedFile &&
           appState.audioInfo &&
           !appState.isProcessing &&
-          elements.targetTime.value.trim() &&
-          window.utils.isValidTimeFormat(elements.targetTime.value);
+          targetSeconds > 0;
 
         elements.processBtn.disabled = !canProcess;
 

@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>核心模块测试 - Daka Helper</title>
+  
+  <!-- 加载 lamejs 库（MP3 编码器依赖） -->
+  <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    h1 {
+      color: white;
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 2.5em;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .test-section {
+      background: white;
+      border-radius: 12px;
+      padding: 25px;
+      margin-bottom: 20px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    }
+    
+    .test-section h2 {
+      color: #667eea;
+      margin-bottom: 15px;
+      font-size: 1.5em;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 10px;
+    }
+    
+    .test-item {
+      margin: 15px 0;
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border-left: 4px solid #667eea;
+    }
+    
+    .test-item h3 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 1.1em;
+    }
+    
+    button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-right: 10px;
+      transition: all 0.3s;
+    }
+    
+    button:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    .result {
+      margin-top: 10px;
+      padding: 10px;
+      background: white;
+      border-radius: 6px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    .success {
+      color: #28a745;
+      font-weight: bold;
+    }
+    
+    .error {
+      color: #dc3545;
+      font-weight: bold;
+    }
+    
+    .info {
+      color: #17a2b8;
+    }
+    
+    input[type="file"] {
+      display: none;
+    }
+    
+    .file-label {
+      display: inline-block;
+      background: #28a745;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    .file-label:hover {
+      background: #218838;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+    }
+    
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
+    }
+    
+    .stat-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    
+    .stat-card .label {
+      font-size: 12px;
+      opacity: 0.9;
+      margin-bottom: 5px;
+    }
+    
+    .stat-card .value {
+      font-size: 24px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧪 核心模块测试</h1>
+    
+    <!-- 时间计算工具测试 -->
+    <div class="test-section">
+      <h2>⏱️ TimeCalculator 测试</h2>
+      
+      <div class="test-item">
+        <h3>测试1: 时间转换</h3>
+        <button onclick="testTimeConversion()">运行测试</button>
+        <div id="time-conversion-result" class="result"></div>
+      </div>
+      
+      <div class="test-item">
+        <h3>测试2: 延长计算</h3>
+        <button onclick="testExtendCalculation()">运行测试</button>
+        <div id="extend-calculation-result" class="result"></div>
+      </div>
+      
+      <div class="test-item">
+        <h3>测试3: 重复次数计算</h3>
+        <button onclick="testRepeatCount()">运行测试</button>
+        <div id="repeat-count-result" class="result"></div>
+      </div>
+    </div>
+    
+    <!-- 验证器测试 -->
+    <div class="test-section">
+      <h2>✅ Validator 测试</h2>
+      
+      <div class="test-item">
+        <h3>测试4: 时长验证</h3>
+        <button onclick="testDurationValidation()">运行测试</button>
+        <div id="duration-validation-result" class="result"></div>
+      </div>
+      
+      <div class="test-item">
+        <h3>测试5: 延长验证</h3>
+        <button onclick="testExtendValidation()">运行测试</button>
+        <div id="extend-validation-result" class="result"></div>
+      </div>
+    </div>
+    
+    <!-- 格式检测器测试 -->
+    <div class="test-section">
+      <h2>🔍 FormatDetector 测试</h2>
+      
+      <div class="test-item">
+        <h3>测试6: 文件格式检测</h3>
+        <label class="file-label" for="test-file">选择音频文件</label>
+        <input type="file" id="test-file" accept="audio/*" onchange="testFormatDetection(this.files[0])">
+        <div id="format-detection-result" class="result"></div>
+      </div>
+      
+      <div class="test-item">
+        <h3>测试7: 支持格式列表</h3>
+        <button onclick="testSupportedFormats()">运行测试</button>
+        <div id="supported-formats-result" class="result"></div>
+      </div>
+    </div>
+    
+    <!-- 音频编码器测试 -->
+    <div class="test-section">
+      <h2>🎵 AudioEncoder 测试</h2>
+      
+      <div class="test-item">
+        <h3>测试8: 格式推荐</h3>
+        <button onclick="testFormatRecommendation()">运行测试</button>
+        <div id="format-recommendation-result" class="result"></div>
+      </div>
+      
+      <div class="test-item">
+        <h3>测试9: 文件大小预估</h3>
+        <button onclick="testSizeEstimation()">运行测试</button>
+        <div id="size-estimation-result" class="result"></div>
+      </div>
+      
+      <div class="test-item">
+        <h3>测试10: 编码时间预估</h3>
+        <button onclick="testTimeEstimation()">运行测试</button>
+        <div id="time-estimation-result" class="result"></div>
+      </div>
+    </div>
+    
+    <!-- 完整流程测试 -->
+    <div class="test-section">
+      <h2>🔄 完整流程测试</h2>
+      
+      <div class="test-item">
+        <h3>测试11: 端到端音频处理</h3>
+        <label class="file-label" for="full-test-file">选择音频文件</label>
+        <input type="file" id="full-test-file" accept="audio/*" onchange="testFullPipeline(this.files[0])">
+        <div id="full-pipeline-result" class="result"></div>
+        <div id="full-pipeline-stats" class="stats" style="display:none;">
+          <div class="stat-card">
+            <div class="label">原始时长</div>
+            <div class="value" id="stat-source-duration">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">目标时长</div>
+            <div class="value" id="stat-target-duration">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">重复次数</div>
+            <div class="value" id="stat-repeat-count">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">输出格式</div>
+            <div class="value" id="stat-output-format">-</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    // 导入核心模块
+    import { TimeCalculator } from './src/core/time-calculator.js';
+    import { Validator } from './src/core/validator.js';
+    import { FormatDetector } from './src/core/format-detector.js';
+    import { AudioEncoder } from './src/encoders/audio-encoder.js';
+    import { AudioRepeater } from './src/core/audio-repeater.js';
+    
+    // 将模块挂载到 window 供测试函数使用
+    window.TimeCalculator = TimeCalculator;
+    window.Validator = Validator;
+    window.FormatDetector = FormatDetector;
+    window.AudioEncoder = AudioEncoder;
+    window.AudioRepeater = AudioRepeater;
+    
+    console.log('✅ 核心模块加载成功');
+  </script>
+
+  <script>
+    // 测试函数
+    function testTimeConversion() {
+      const result = document.getElementById('time-conversion-result');
+      try {
+        const tests = [
+          { minutes: 5, seconds: 30, expected: 330 },
+          { minutes: 0, seconds: 45, expected: 45 },
+          { minutes: 2, seconds: 0, expected: 120 }
+        ];
+        
+        let output = '<span class="success">✓ 时间转换测试通过</span>\n\n';
+        
+        tests.forEach((test, i) => {
+          const seconds = TimeCalculator.minutesToSeconds(test.minutes, test.seconds);
+          const back = TimeCalculator.secondsToMinutes(seconds);
+          const formatted = TimeCalculator.formatDuration(seconds);
+          
+          output += `测试 ${i + 1}: ${test.minutes}分${test.seconds}秒\n`;
+          output += `  → ${seconds}秒 (预期: ${test.expected}秒)\n`;
+          output += `  → 转回: ${back.minutes}分${back.seconds}秒\n`;
+          output += `  → 格式化: ${formatted}\n\n`;
+        });
+        
+        result.innerHTML = output;
+      } catch (error) {
+        result.innerHTML = `<span class="error">✗ 错误: ${error.message}</span>`;
+      }
+    }
+    
+    function testExtendCalculation() {
+      const result = document.getElementById('extend-calculation-result');
+      try {
+        const baseDuration = 300; // 5分钟
+        let output = '<span class="success">✓ 延长计算测试</span>\n\n';
+        output += `基础时长: ${baseDuration}秒 (${TimeCalculator.formatDuration(baseDuration)})\n\n`;
+        
+        const testSeconds = [0, 15, 30, 60, 120];
+        testSeconds.forEach(seconds => {
+          const extended = TimeCalculator.calculateExtendedDuration(baseDuration, seconds);
+          output += `延长 ${seconds}秒: ${extended}秒 (${TimeCalculator.formatDuration(extended)})\n`;
+        });
+        
+        result.innerHTML = output;
+      } catch (error) {
+        result.innerHTML = `<span class="error">✗ 错误: ${error.message}</span>`;
+      }
+    }
+    
+    function testRepeatCount() {
+      const result = document.getElementById('repeat-count-result');
+      try {
+        const tests = [
+          { source: 10, target: 35, expected: 4 },
+          { source: 15, target: 60, expected: 4 },
+          { source: 30, target: 100, expected: 4 }
+        ];
+        
+        let output = '<span class="success">✓ 重复次数计算测试</span>\n\n';
+        
+        tests.forEach((test, i) => {
+          const count = TimeCalculator.calculateRepeatCount(test.source, test.target);
+          output += `测试 ${i + 1}: 源${test.source}秒 → 目标${test.target}秒\n`;
+          output += `  需要重复: ${count}次 (预期: ${test.expected}次)\n\n`;
+        });
+        
+        result.innerHTML = output;
+      } catch (error) {
+        result.innerHTML = `<span class="error">✗ 错误: ${error.message}</span>`;
+      }
+    }
+    
+    function testDurationValidation() {
+      const result = document.getElementById('duration-validation-result');
+      try {
+        const tests = [
+          { minutes: 5, seconds: 30, valid: true },
+          { minutes: 0, seconds: 0, valid: false },
+          { minutes: 400, seconds: 0, valid: false },
+          { minutes: -1, seconds: 30, valid: false }
+        ];
+        
+        let output = '<span class="success">✓ 时长验证测试</span>\n\n';
+        
+        tests.forEach((test, i) => {
+          const validation = Validator.validateTargetDuration(test.minutes, test.seconds);
+          const match = validation.valid === test.valid;
+          const icon = match ? '✓' : '✗';
+          
+          output += `${icon} 测试 ${i + 1}: ${test.minutes}分${test.seconds}秒\n`;
+          output += `  结果: ${validation.valid ? '有效' : '无效'}\n`;
+          if (!validation.valid) {
+            output += `  原因: ${validation.message}\n`;
+          }
+          output += '\n';
+        });
+        
+        result.innerHTML = output;
+      } catch (error) {
+        result.innerHTML = `<span class="error">✗ 错误: ${error.message}</span>`;
+      }
+    }
+    
+    function testExtendValidation() {
+      const result = document.getElementById('extend-validation-result');
+      try {
+        const tests = [
+          { enabled: true, seconds: 30, valid: true },
+          { enabled: false, seconds: 0, valid: true },
+          { enabled: true, seconds: 400, valid: false },  // 超过最大值300
+          { enabled: true, seconds: -5, valid: false }
+        ];
+        
+        let output = '<span class="success">✓ 延长验证测试</span>\n\n';
+        
+        tests.forEach((test, i) => {
+          const validation = Validator.validateExtend(test.enabled, test.seconds);
+          const match = validation.valid === test.valid;
+          const icon = match ? '✓' : '✗';
+          
+          output += `${icon} 测试 ${i + 1}: ${test.enabled ? '启用' : '禁用'}, ${test.seconds}秒\n`;
+          output += `  结果: ${validation.valid ? '有效' : '无效'}\n`;
+          if (!validation.valid) {
+            output += `  原因: ${validation.message}\n`;
+          }
+          output += '\n';
+        });
+        
+        result.innerHTML = output;
+      } catch (error) {
+        result.innerHTML = `<span class="error">✗ 错误: ${error.message}</span>`;
+      }
+    }
+    
+    function testFormatDetection(file) {
+      const result = document.getElementById('format-detection-result');
+      if (!file) {
+        result.innerHTML = '<span class="info">请选择一个音频文件</span>';
+        return;
+      }
+      
+      try {
+        const detection = FormatDetector.detectFromFile(file);
+        const validation = FormatDetector.validateAudioFile(file);
+        
+        let output = '<span class="success">✓ 格式检测完成</span>\n\n';
+        output += `文件名: ${file.name}\n`;
+        output += `文件大小: ${(file.size / 1024 / 1024).toFixed(2)} MB\n`;
+        output += `MIME类型: ${file.type || '未知'}\n\n`;
+        
+        output += `检测结果:\n`;
+        output += `  格式: ${detection.format ? detection.format.toUpperCase() : '未知'}\n`;
+        output += `  置信度: ${detection.confidence}%\n`;
+        output += `  详情: ${detection.details}\n\n`;
+        
+        output += `验证结果:\n`;
+        output += `  ${validation.valid ? '✓ 有效' : '✗ 无效'}\n`;
+        output += `  消息: ${validation.message}\n`;
+        
+        result.innerHTML = output;
+      } catch (error) {
+        result.innerHTML = `<span class="error">✗ 错误: ${error.message}</span>`;
+      }
+    }
+    
+    function testSupportedFormats() {
+      const result = document.getElementById('supported-formats-result');
+      try {
+        const formats = FormatDetector.getSupportedFormats();
+        
+        let output = '<span class="success">✓ 支持的格式</span>\n\n';
+        
+        formats.forEach(format => {
+          const info = FormatDetector.getFormatInfo(format);
+          const browserSupport = FormatDetector.isBrowserSupported(format);
+          
+          output += `${format.toUpperCase()}: ${info.description}\n`;
+          output += `  扩展名: ${info.extensions.join(', ')}\n`;
+          output += `  MIME: ${info.mimeTypes.join(', ')}\n`;
+          output += `  浏览器支持: ${browserSupport ? '✓ 是' : '✗ 否'}\n\n`;
+        });
+        
+        result.innerHTML = output;
+      } catch (error) {
+        result.innerHTML = `<span class="error">✗ 错误: ${error.message}</span>`;
+      }
+    }
+    
+    function testFormatRecommendation() {
+      const result = document.getElementById('format-recommendation-result');
+      try {
+        const durations = [
+          { value: 180, label: '3分钟' },
+          { value: 900, label: '15分钟' },
+          { value: 2400, label: '40分钟' }
+        ];
+        
+        let output = '<span class="success">✓ 格式推荐测试</span>\n\n';
+        
+        durations.forEach(({ value, label }) => {
+          const rec = AudioEncoder.getFormatRecommendation(value);
+          output += `${label} (${value}秒):\n`;
+          output += `  推荐格式: ${rec.format.toUpperCase()}\n`;
+          output += `  理由: ${rec.reason}\n\n`;
+        });
+        
+        result.innerHTML = output;
+      } catch (error) {
+        result.innerHTML = `<span class="error">✗ 错误: ${error.message}</span>`;
+      }
+    }
+    
+    function testSizeEstimation() {
+      const result = document.getElementById('size-estimation-result');
+      try {
+        const duration = 300; // 5分钟
+        const formats = ['wav', 'mp3'];
+        
+        let output = '<span class="success">✓ 文件大小预估测试</span>\n\n';
+        output += `音频时长: ${duration}秒 (5分钟)\n\n`;
+        
+        formats.forEach(format => {
+          const size = AudioEncoder.estimateFileSize(duration, format);
+          output += `${format.toUpperCase()}:\n`;
+          output += `  大小: ${size.formatted}\n`;
+          output += `  字节: ${size.bytes.toLocaleString()}\n`;
+          output += `  MB: ${size.mb.toFixed(2)}\n\n`;
+        });
+        
+        result.innerHTML = output;
+      } catch (error) {
+        result.innerHTML = `<span class="error">✗ 错误: ${error.message}</span>`;
+      }
+    }
+    
+    function testTimeEstimation() {
+      const result = document.getElementById('time-estimation-result');
+      try {
+        const durations = [60, 300, 1800]; // 1分钟, 5分钟, 30分钟
+        const formats = ['wav', 'mp3'];
+        
+        let output = '<span class="success">✓ 编码时间预估测试</span>\n\n';
+        
+        durations.forEach(duration => {
+          const minutes = Math.floor(duration / 60);
+          output += `音频时长: ${minutes}分钟\n`;
+          
+          formats.forEach(format => {
+            const time = AudioEncoder.estimateEncodeTime(duration, format);
+            output += `  ${format.toUpperCase()}: ${time.formatted}\n`;
+          });
+          output += '\n';
+        });
+        
+        result.innerHTML = output;
+      } catch (error) {
+        result.innerHTML = `<span class="error">✗ 错误: ${error.message}</span>`;
+      }
+    }
+    
+    async function testFullPipeline(file) {
+      const result = document.getElementById('full-pipeline-result');
+      const stats = document.getElementById('full-pipeline-stats');
+      
+      if (!file) {
+        result.innerHTML = '<span class="info">请选择一个音频文件</span>';
+        return;
+      }
+      
+      try {
+        result.innerHTML = '<span class="info">⏳ 处理中...</span>';
+        stats.style.display = 'none';
+        
+        // 1. 验证文件
+        const validation = FormatDetector.validateAudioFile(file);
+        if (!validation.valid) {
+          throw new Error(validation.message);
+        }
+        
+        // 2. 创建 AudioContext
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // 3. 读取文件
+        const arrayBuffer = await file.arrayBuffer();
+        
+        // 4. 解码音频
+        const sourceBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        
+        // 5. 设置目标时长（重复3次）
+        const targetDuration = sourceBuffer.duration * 3;
+        
+        // 6. 重复音频
+        let output = '<span class="success">✓ 完整流程测试成功</span>\n\n';
+        output += `步骤1: 文件验证 ✓\n`;
+        output += `  格式: ${validation.format.toUpperCase()}\n`;
+        output += `  大小: ${(file.size / 1024 / 1024).toFixed(2)} MB\n\n`;
+        
+        output += `步骤2: 音频解码 ✓\n`;
+        output += `  原始时长: ${sourceBuffer.duration.toFixed(2)}秒\n`;
+        output += `  采样率: ${sourceBuffer.sampleRate} Hz\n`;
+        output += `  声道数: ${sourceBuffer.numberOfChannels}\n\n`;
+        
+        output += `步骤3: 音频重复处理\n`;
+        output += `  目标时长: ${targetDuration.toFixed(2)}秒\n`;
+        
+        const startTime = performance.now();
+        const repeatedBuffer = await AudioRepeater.repeatAudio(
+          sourceBuffer,
+          targetDuration,
+          audioContext,
+          (progress) => {
+            result.innerHTML = output + `  进度: ${progress}%\n`;
+          }
+        );
+        const repeatTime = performance.now() - startTime;
+        
+        output += `  完成时间: ${repeatTime.toFixed(0)}ms ✓\n\n`;
+        
+        // 7. 格式推荐
+        const recommendation = AudioEncoder.getFormatRecommendation(targetDuration);
+        output += `步骤4: 格式推荐\n`;
+        output += `  推荐: ${recommendation.format.toUpperCase()}\n`;
+        output += `  理由: ${recommendation.reason}\n\n`;
+        
+        // 8. 显示统计信息
+        const repeatCount = TimeCalculator.calculateRepeatCount(sourceBuffer.duration, targetDuration);
+        
+        document.getElementById('stat-source-duration').textContent =
+          `${sourceBuffer.duration.toFixed(1)}秒`;
+        document.getElementById('stat-target-duration').textContent =
+          `${targetDuration.toFixed(1)}秒`;
+        document.getElementById('stat-repeat-count').textContent =
+          `${repeatCount}次`;
+        document.getElementById('stat-output-format').textContent =
+          recommendation.format.toUpperCase();
+        
+        stats.style.display = 'grid';
+        result.innerHTML = output;
+        
+      } catch (error) {
+        result.innerHTML = `<span class="error">✗ 错误: ${error.message}</span>`;
+        stats.style.display = 'none';
+      }
+    }
+  </script>
+</body>
+</html>

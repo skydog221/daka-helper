@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>统一UI测试 - 打卡助手</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #f5f5f5; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .test-section { background: white; padding: 20px; margin: 10px 0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    h1 { color: #667eea; }
+    h2 { color: #333; border-bottom: 2px solid #667eea; padding-bottom: 10px; }
+    .test-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
+    .status { padding: 4px 12px; border-radius: 12px; font-weight: 600; font-size: 0.9em; }
+    .pending { background: #ffc107; color: #333; }
+    .pass { background: #28a745; color: white; }
+    .fail { background: #dc3545; color: white; }
+    button { background: #667eea; color: white; border: none; padding: 12px 30px; border-radius: 25px; cursor: pointer; font-size: 1.1em; margin: 20px 0; }
+    button:hover { background: #5568d3; }
+    #log { background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 0.9em; max-height: 300px; overflow-y: auto; margin-top: 20px; }
+    .log-success { color: #81c784; }
+    .log-error { color: #e57373; }
+    iframe { width: 100%; height: 800px; border: none; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="test-section">
+      <h1>🧪 统一UI测试套件</h1>
+      <p>测试 src/ui/ 统一架构功能</p>
+      <button onclick="runTests()">🚀 运行测试</button>
+    </div>
+
+    <div class="test-section">
+      <h2>📦 模块加载测试</h2>
+      <div class="test-item"><span>核心模块</span><span class="status pending" id="s1">待测试</span></div>
+      <div class="test-item"><span>编码器</span><span class="status pending" id="s2">待测试</span></div>
+      <div class="test-item"><span>适配器</span><span class="status pending" id="s3">待测试</span></div>
+      <div class="test-item"><span>lamejs</span><span class="status pending" id="s4">待测试</span></div>
+    </div>
+
+    <div class="test-section">
+      <h2>⚙️ 核心算法测试</h2>
+      <div class="test-item"><span>时间计算</span><span class="status pending" id="s5">待测试</span></div>
+      <div class="test-item"><span>随机延长</span><span class="status pending" id="s6">待测试</span></div>
+      <div class="test-item"><span>输入验证</span><span class="status pending" id="s7">待测试</span></div>
+      <div class="test-item"><span>格式检测</span><span class="status pending" id="s8">待测试</span></div>
+    </div>
+
+    <div class="test-section">
+      <h2>📊 测试日志</h2>
+      <div id="log"></div>
+    </div>
+
+    <div class="test-section">
+      <h2>📱 应用预览</h2>
+      <iframe src="src/ui/index.html"></iframe>
+    </div>
+  </div>
+
+  <script type="module">
+    function log(msg, type = 'info') {
+      const el = document.getElementById('log');
+      const color = type === 'success' ? 'log-success' : type === 'error' ? 'log-error' : '';
+      el.innerHTML += `<div class="${color}">[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function setStatus(id, pass, msg) {
+      const el = document.getElementById(id);
+      el.className = `status ${pass ? 'pass' : 'fail'}`;
+      el.textContent = pass ? '✓ 通过' : '✗ 失败';
+      log(`${pass ? '✓' : '✗'} ${msg}`, pass ? 'success' : 'error');
+    }
+
+    window.runTests = async function() {
+      document.getElementById('log').innerHTML = '';
+      log('开始测试...', 'info');
+
+      // 1. 模块加载测试
+      try {
+        const { TimeCalculator } = await import('./src/core/time-calculator.js');
+        const { Validator } = await import('./src/core/validator.js');
+        setStatus('s1', TimeCalculator && Validator, '核心模块加载');
+      } catch(e) { setStatus('s1', false, `核心模块: ${e.message}`); }
+
+      try {
+        const { WavEncoder } = await import('./src/encoders/wav-encoder.js');
+        const { Mp3Encoder } = await import('./src/encoders/mp3-encoder.js');
+        setStatus('s2', WavEncoder && Mp3Encoder, '编码器加载');
+      } catch(e) { setStatus('s2', false, `编码器: ${e.message}`); }
+
+      try {
+        const { PlatformDetector } = await import('./src/adapters/platform-detector.js');
+        const { getConfigStorage } = await import('./src/adapters/config-storage.js');
+        setStatus('s3', PlatformDetector && getConfigStorage, '适配器加载');
+      } catch(e) { setStatus('s3', false, `适配器: ${e.message}`); }
+
+      setStatus('s4', typeof window.lamejs !== 'undefined', 'lamejs加载');
+
+      // 2. 核心算法测试
+      try {
+        const { TimeCalculator } = await import('./src/core/time-calculator.js');
+        const d1 = TimeCalculator.minutesToSeconds(5, 30);
+        const d2 = TimeCalculator.formatDuration(125);
+        setStatus('s5', d1 === 330 && d2 === '2:05', `时间计算: 5:30=${d1}s, 125s=${d2}`);
+      } catch(e) { setStatus('s5', false, `时间计算: ${e.message}`); }
+
+      try {
+        const { TimeCalculator } = await import('./src/core/time-calculator.js');
+        const results = [];
+        for(let i=0; i<10; i++) results.push(TimeCalculator.calculateExtendedDuration(100, 30));
+        const ok = results.every(v => v >= 100 && v <= 130) && new Set(results).size > 1;
+        setStatus('s6', ok, `随机延长: 范围[100-130], 样本=${results.slice(0,3).join(',')}`);
+      } catch(e) { setStatus('s6', false, `随机延长: ${e.message}`); }
+
+      try {
+        const { Validator } = await import('./src/core/validator.js');
+        const v1 = Validator.validateTargetDuration(10, 30);
+        const v2 = Validator.validateTargetDuration(-1, 30);
+        setStatus('s7', v1.valid && !v2.valid, '输入验证');
+      } catch(e) { setStatus('s7', false, `输入验证: ${e.message}`); }
+
+      try {
+        const { FormatDetector } = await import('./src/core/format-detector.js');
+        // 创建模拟文件对象
+        const mockFile1 = { name: 'test.mp3', type: 'audio/mpeg' };
+        const mockFile2 = { name: 'test.wav', type: 'audio/wav' };
+        const f1 = FormatDetector.detectFromFile(mockFile1);
+        const f2 = FormatDetector.detectFromFile(mockFile2);
+        setStatus('s8', f1.format === 'mp3' && f2.format === 'wav', `格式检测: ${f1.format}, ${f2.format}`);
+      } catch(e) { setStatus('s8', false, `格式检测: ${e.message}`); }
+
+      log('测试完成！', 'info');
+    };
+  </script>
+</body>
+</html>

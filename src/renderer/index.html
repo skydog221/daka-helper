@@ -45,15 +45,31 @@
 
           <!-- 目标时间设置 -->
           <div class="setting-group">
-            <label for="targetTime">目标时长</label>
+            <label>目标时长</label>
             <div class="time-input-group">
-              <input
-                type="text"
-                id="targetTime"
-                placeholder="MM:SS 或 HH:MM:SS"
-                value="10:00"
-              />
-              <span class="time-hint">格式：分:秒 或 时:分:秒</span>
+              <div class="time-input-field">
+                <label for="targetMinutes" class="time-label">分钟</label>
+                <input
+                  type="number"
+                  id="targetMinutes"
+                  min="0"
+                  max="999"
+                  value="10"
+                  placeholder="0"
+                />
+              </div>
+              <span class="time-separator">:</span>
+              <div class="time-input-field">
+                <label for="targetSeconds" class="time-label">秒</label>
+                <input
+                  type="number"
+                  id="targetSeconds"
+                  min="0"
+                  max="59"
+                  value="0"
+                  placeholder="0"
+                />
+              </div>
             </div>
           </div>
 

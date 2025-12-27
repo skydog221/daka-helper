@@ -1,0 +1,508 @@
+/**
+ * 统一的 UI 控制逻辑
+ * 使用核心模块和平台适配器
+ */
+
+// 导入核心模块
+import { TimeCalculator } from '../core/time-calculator.js';
+import { Validator } from '../core/validator.js';
+import { FormatDetector } from '../core/format-detector.js';
+import { AudioRepeater } from '../core/audio-repeater.js';
+
+// 导入编码器
+import { AudioEncoder } from '../encoders/audio-encoder.js';
+
+// 导入平台适配器
+import { PlatformDetector } from '../adapters/platform-detector.js';
+import { ConfigStorage } from '../adapters/config-storage.js';
+import { FileHandler } from '../adapters/file-handler.js';
+
+// 音频上下文
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+// 应用状态
+const appState = {
+  selectedFile: null,
+  audioBuffer: null,
+  audioInfo: null,
+  isProcessing: false,
+};
+
+// DOM 元素引用
+const elements = {
+  fileUploadArea: document.getElementById('fileUploadArea'),
+  selectFileBtn: document.getElementById('selectFileBtn'),
+  fileInfo: document.getElementById('fileInfo'),
+  fileName: document.getElementById('fileName'),
+  fileSize: document.getElementById('fileSize'),
+  fileDuration: document.getElementById('fileDuration'),
+  fileFormat: document.getElementById('fileFormat'),
+  changeFileBtn: document.getElementById('changeFileBtn'),
+
+  targetMinutes: document.getElementById('targetMinutes'),
+  targetSeconds: document.getElementById('targetSeconds'),
+  randomExtend: document.getElementById('randomExtend'),
+  randomRangeGroup: document.getElementById('randomRangeGroup'),
+  randomRange: document.getElementById('randomRange'),
+  outputFormat: document.getElementById('outputFormat'),
+
+  processBtn: document.getElementById('processBtn'),
+  progressContainer: document.getElementById('progressContainer'),
+  progressStage: document.getElementById('progressStage'),
+  progressPercent: document.getElementById('progressPercent'),
+  progressFill: document.getElementById('progressFill'),
+
+  resultContainer: document.getElementById('resultContainer'),
+  resultMessage: document.getElementById('resultMessage'),
+  openFolderBtn: document.getElementById('openFolderBtn'),
+  processAnotherBtn: document.getElementById('processAnotherBtn'),
+
+  errorContainer: document.getElementById('errorContainer'),
+  errorMessage: document.getElementById('errorMessage'),
+  retryBtn: document.getElementById('retryBtn'),
+};
+
+/**
+ * 初始化应用
+ */
+async function initApp() {
+  console.log(`[App] 初始化应用，平台: ${PlatformDetector.isElectron() ? 'Electron' : 'Web'}`);
+  
+  setupEventListeners();
+  await loadConfig();
+  updateUI();
+}
+
+/**
+ * 设置事件监听器
+ */
+function setupEventListeners() {
+  // 文件选择
+  elements.selectFileBtn.addEventListener('click', selectFile);
+  elements.changeFileBtn.addEventListener('click', selectFile);
+  
+  // 拖拽上传
+  elements.fileUploadArea.addEventListener('dragover', handleDragOver);
+  elements.fileUploadArea.addEventListener('drop', handleDrop);
+  elements.fileUploadArea.addEventListener('dragleave', handleDragLeave);
+
+  // 随机延长切换
+  elements.randomExtend.addEventListener('change', toggleRandomRange);
+  elements.randomRange.addEventListener('input', updateRandomRangeHint);
+
+  // 时间输入验证
+  elements.targetMinutes.addEventListener('input', validateAndUpdateUI);
+  elements.targetSeconds.addEventListener('input', validateAndUpdateUI);
+
+  // 处理按钮
+  elements.processBtn.addEventListener('click', processAudio);
+
+  // 结果操作
+  elements.openFolderBtn.addEventListener('click', openOutputFolder);
+  elements.processAnotherBtn.addEventListener('click', resetApp);
+  elements.retryBtn.addEventListener('click', processAudio);
+
+  // 格式选择变化时保存配置
+  elements.outputFormat.addEventListener('change', saveConfig);
+  elements.randomExtend.addEventListener('change', saveConfig);
+  elements.randomRange.addEventListener('change', saveConfig);
+}
+
+/**
+ * 加载配置
+ */
+async function loadConfig() {
+  try {
+    const config = await ConfigStorage.get('userSettings');
+    if (config) {
+      if (config.outputFormat) {
+        elements.outputFormat.value = config.outputFormat;
+      }
+      if (typeof config.randomExtend === 'boolean') {
+        elements.randomExtend.checked = config.randomExtend;
+      }
+      if (config.randomRange) {
+        elements.randomRange.value = config.randomRange;
+      }
+      toggleRandomRange();
+      updateRandomRangeHint();
+    }
+  } catch (error) {
+    console.error('[App] 加载配置失败:', error);
+  }
+}
+
+/**
+ * 保存配置
+ */
+async function saveConfig() {
+  try {
+    const config = {
+      outputFormat: elements.outputFormat.value,
+      randomExtend: elements.randomExtend.checked,
+      randomRange: parseInt(elements.randomRange.value) || 30,
+    };
+    await ConfigStorage.set('userSettings', config);
+  } catch (error) {
+    console.error('[App] 保存配置失败:', error);
+  }
+}
+
+/**
+ * 选择音频文件
+ */
+async function selectFile() {
+  try {
+    const file = await FileHandler.selectFile({
+      accept: 'audio/*',
+      multiple: false,
+    });
+
+    if (!file) return;
+
+    await loadAudioFile(file);
+  } catch (error) {
+    console.error('[App] 文件选择失败:', error);
+    showError('文件选择失败: ' + error.message);
+  }
+}
+
+/**
+ * 加载音频文件
+ */
+async function loadAudioFile(file) {
+  try {
+    // 验证文件
+    const fileValidation = Validator.validateFile(file);
+    if (!fileValidation.valid) {
+      showError(fileValidation.error);
+      return;
+    }
+
+    // 检测格式
+    const formatInfo = FormatDetector.detectFromFile(file);
+    console.log('[App] 检测到格式:', formatInfo);
+
+    // 读取文件为 ArrayBuffer
+    const arrayBuffer = await file.arrayBuffer();
+
+    // 解码音频
+    showProgress('正在解码音频...', 20);
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+    // 验证音频缓冲区
+    const bufferValidation = Validator.validateAudioBuffer(audioBuffer);
+    if (!bufferValidation.valid) {
+      showError(bufferValidation.error);
+      hideProgress();
+      return;
+    }
+
+    // 更新状态
+    appState.selectedFile = file;
+    appState.audioBuffer = audioBuffer;
+    appState.audioInfo = {
+      name: file.name,
+      size: file.size,
+      duration: audioBuffer.duration,
+      format: formatInfo.format,
+      sampleRate: audioBuffer.sampleRate,
+      channels: audioBuffer.numberOfChannels,
+    };
+
+    hideProgress();
+    hideError();
+    updateUI();
+
+    console.log('[App] 音频加载成功:', appState.audioInfo);
+  } catch (error) {
+    console.error('[App] 音频加载失败:', error);
+    showError('音频解码失败，请确保文件格式正确');
+    appState.selectedFile = null;
+    appState.audioBuffer = null;
+    appState.audioInfo = null;
+    hideProgress();
+    updateUI();
+  }
+}
+
+/**
+ * 处理拖拽悬停
+ */
+function handleDragOver(event) {
+  event.preventDefault();
+  elements.fileUploadArea.style.borderColor = '#667eea';
+  elements.fileUploadArea.style.background = '#f0f4ff';
+}
+
+/**
+ * 处理拖拽离开
+ */
+function handleDragLeave(event) {
+  event.preventDefault();
+  elements.fileUploadArea.style.borderColor = '#ddd';
+  elements.fileUploadArea.style.background = '#fafafa';
+}
+
+/**
+ * 处理文件拖拽放置
+ */
+async function handleDrop(event) {
+  event.preventDefault();
+  elements.fileUploadArea.style.borderColor = '#ddd';
+  elements.fileUploadArea.style.background = '#fafafa';
+
+  const files = event.dataTransfer.files;
+  if (files.length > 0) {
+    await loadAudioFile(files[0]);
+  }
+}
+
+/**
+ * 切换随机延长选项
+ */
+function toggleRandomRange() {
+  const isChecked = elements.randomExtend.checked;
+  elements.randomRangeGroup.style.display = isChecked ? 'block' : 'none';
+  updateRandomRangeHint();
+  saveConfig();
+}
+
+/**
+ * 更新随机延长提示
+ */
+function updateRandomRangeHint() {
+  const range = parseInt(elements.randomRange.value) || 30;
+  const rangeHint = elements.randomRangeGroup.querySelector('.range-hint');
+  if (rangeHint) {
+    rangeHint.textContent = `在目标时长基础上随机增加 0-${range} 秒`;
+  }
+}
+
+/**
+ * 验证输入并更新UI
+ */
+function validateAndUpdateUI() {
+  updateUI();
+}
+
+/**
+ * 处理音频
+ */
+async function processAudio() {
+  if (appState.isProcessing) return;
+
+  // 验证输入
+  const minutes = parseInt(elements.targetMinutes.value) || 0;
+  const seconds = parseInt(elements.targetSeconds.value) || 0;
+
+  const validation = Validator.validateTargetDuration(minutes, seconds);
+  if (!validation.valid) {
+    showError(validation.message);
+    return;
+  }
+
+  if (!appState.audioBuffer) {
+    showError('请先选择音频文件');
+    return;
+  }
+
+  try {
+    appState.isProcessing = true;
+    hideError();
+    hideResult();
+    updateUI();
+
+    // 计算目标时长
+    const baseDuration = validation.duration;
+    let finalDuration = baseDuration;
+
+    // 应用随机延长
+    if (elements.randomExtend.checked) {
+      const maxExtend = parseInt(elements.randomRange.value) || 30;
+      finalDuration = TimeCalculator.calculateExtendedDuration(baseDuration, maxExtend);
+      const extendSeconds = finalDuration - baseDuration;
+      console.log(`[App] 随机延长 ${extendSeconds} 秒 (范围: 0-${maxExtend})`);
+    }
+
+    console.log(`[App] 开始处理音频，目标时长: ${TimeCalculator.formatDurationVerbose(finalDuration)}`);
+
+    // 重复音频
+    showProgress('正在重复音频...', 10);
+    const repeatedBuffer = await AudioRepeater.repeatAudio(
+      appState.audioBuffer,
+      finalDuration,
+      (progress) => {
+        showProgress('正在重复音频...', 10 + progress * 0.6);
+      }
+    );
+
+    // 编码音频
+    const outputFormat = elements.outputFormat.value;
+    showProgress(`正在编码为 ${outputFormat.toUpperCase()}...`, 70);
+
+    const audioBlob = await AudioEncoder.encode(repeatedBuffer, outputFormat, (progress) => {
+      showProgress(`正在编码为 ${outputFormat.toUpperCase()}...`, 70 + progress * 0.25);
+    });
+
+    // 保存文件
+    showProgress('正在保存文件...', 95);
+    const fileName = generateOutputFileName(appState.audioInfo.name, finalDuration, outputFormat);
+    
+    await FileHandler.saveFile(audioBlob, fileName, {
+      mimeType: outputFormat === 'mp3' ? 'audio/mpeg' : 'audio/wav',
+    });
+
+    showProgress('处理完成！', 100);
+    
+    // 显示结果
+    const extendInfo = elements.randomExtend.checked 
+      ? ` (含${finalDuration - baseDuration}秒随机延长)` 
+      : '';
+    showResult(`音频文件处理完成！总时长：${TimeCalculator.formatDurationVerbose(finalDuration)}${extendInfo}`);
+
+    console.log('[App] 处理完成，输出文件:', fileName);
+  } catch (error) {
+    console.error('[App] 处理失败:', error);
+    showError('处理失败: ' + error.message);
+  } finally {
+    appState.isProcessing = false;
+    setTimeout(() => hideProgress(), 1000);
+    updateUI();
+  }
+}
+
+/**
+ * 生成输出文件名
+ */
+function generateOutputFileName(originalName, duration, format) {
+  const nameWithoutExt = originalName.replace(/\.[^.]+$/, '');
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const durationStr = TimeCalculator.formatDuration(duration).replace(':', '-');
+  return `${nameWithoutExt}_${durationStr}_${timestamp}.${format}`;
+}
+
+/**
+ * 打开输出文件夹
+ */
+async function openOutputFolder() {
+  if (PlatformDetector.isElectron()) {
+    try {
+      // Electron 环境下打开文件夹
+      // 这里需要通过 IPC 调用主进程
+      console.log('[App] 打开输出文件夹 (Electron)');
+      showError('打开文件夹功能需要在 Electron 主进程中实现');
+    } catch (error) {
+      console.error('[App] 打开文件夹失败:', error);
+      showError('打开文件夹失败');
+    }
+  } else {
+    showError('Web 版本不支持打开文件夹');
+  }
+}
+
+/**
+ * 重置应用
+ */
+function resetApp() {
+  appState.selectedFile = null;
+  appState.audioBuffer = null;
+  appState.audioInfo = null;
+  appState.isProcessing = false;
+  
+  hideResult();
+  hideError();
+  hideProgress();
+  updateUI();
+}
+
+/**
+ * 更新 UI
+ */
+function updateUI() {
+  // 更新文件信息显示
+  if (appState.audioInfo) {
+    elements.fileUploadArea.style.display = 'none';
+    elements.fileInfo.style.display = 'flex';
+    
+    elements.fileName.textContent = appState.audioInfo.name;
+    elements.fileSize.textContent = formatFileSize(appState.audioInfo.size);
+    elements.fileDuration.textContent = TimeCalculator.formatDuration(appState.audioInfo.duration);
+    elements.fileFormat.textContent = appState.audioInfo.format.toUpperCase();
+  } else {
+    elements.fileUploadArea.style.display = 'block';
+    elements.fileInfo.style.display = 'none';
+  }
+
+  // 更新处理按钮状态
+  const minutes = parseInt(elements.targetMinutes.value) || 0;
+  const seconds = parseInt(elements.targetSeconds.value) || 0;
+  const validation = Validator.validateTargetDuration(minutes, seconds);
+  
+  const canProcess = appState.audioBuffer && validation.valid && !appState.isProcessing;
+  elements.processBtn.disabled = !canProcess;
+}
+
+/**
+ * 显示进度
+ */
+function showProgress(stage, percent) {
+  elements.progressContainer.style.display = 'block';
+  elements.progressStage.textContent = stage;
+  elements.progressPercent.textContent = `${Math.round(percent)}%`;
+  elements.progressFill.style.width = `${percent}%`;
+}
+
+/**
+ * 隐藏进度
+ */
+function hideProgress() {
+  elements.progressContainer.style.display = 'none';
+}
+
+/**
+ * 显示结果
+ */
+function showResult(message) {
+  elements.resultContainer.style.display = 'block';
+  elements.resultMessage.textContent = message;
+  
+  // 在 Web 环境下隐藏"打开文件夹"按钮
+  if (!PlatformDetector.isElectron()) {
+    elements.openFolderBtn.style.display = 'none';
+  }
+}
+
+/**
+ * 隐藏结果
+ */
+function hideResult() {
+  elements.resultContainer.style.display = 'none';
+}
+
+/**
+ * 显示错误
+ */
+function showError(message) {
+  elements.errorContainer.style.display = 'block';
+  elements.errorMessage.textContent = message;
+}
+
+/**
+ * 隐藏错误
+ */
+function hideError() {
+  elements.errorContainer.style.display = 'none';
+}
+
+/**
+ * 格式化文件大小
+ */
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+}
+
+// 初始化应用
+initApp();

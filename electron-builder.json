@@ -2,9 +2,23 @@
   "appId": "com.skydog221.daka-helper",
   "productName": "打卡剪辑助手",
   "directories": {
-    "output": "dist"
+    "output": "dist/installer"
   },
-  "files": ["main.js", "src/**/*", "package.json"],
+  "files": [
+    "main.js",
+    "dist/electron/**/*",
+    "src/core/**/*",
+    "src/encoders/**/*",
+    "src/adapters/**/*",
+    "package.json"
+  ],
+  "extraResources": [
+    {
+      "from": "dist/web",
+      "to": "web-version",
+      "filter": ["**/*"]
+    }
+  ],
   "win": {
     "target": "nsis",
     "icon": null

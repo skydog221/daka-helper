@@ -26,7 +26,8 @@ const elements = {
   fileFormat: document.getElementById("fileFormat"),
   changeFileBtn: document.getElementById("changeFileBtn"),
 
-  targetTime: document.getElementById("targetTime"),
+  targetMinutes: document.getElementById("targetMinutes"),
+  targetSeconds: document.getElementById("targetSeconds"),
   randomExtend: document.getElementById("randomExtend"),
   randomRangeGroup: document.getElementById("randomRangeGroup"),
   randomRange: document.getElementById("randomRange"),
@@ -251,7 +252,9 @@ async function processAudio() {
     updateUI();
 
     // 获取目标时长
-    const targetSeconds = window.utils.parseTime(elements.targetTime.value);
+    const minutes = parseInt(elements.targetMinutes.value) || 0;
+    const seconds = parseInt(elements.targetSeconds.value) || 0;
+    const targetSeconds = minutes * 60 + seconds;
 
     // 计算随机延长
     let randomExtra = 0;
@@ -497,7 +500,9 @@ function validateInputs() {
     };
   }
 
-  const targetSeconds = window.utils.parseTime(timeValue);
+  const minutes = parseInt(elements.targetMinutes.value) || 0;
+  const seconds = parseInt(elements.targetSeconds.value) || 0;
+  const targetSeconds = minutes * 60 + seconds;
   if (targetSeconds <= 0) {
     return { valid: false, message: "目标时长必须大于 0" };
   }
@@ -611,7 +616,8 @@ function resetApp() {
   hideProgress();
 
   // 重置表单
-  elements.targetTime.value = "10:00";
+  elements.targetMinutes.value = "10";
+  elements.targetSeconds.value = "0";
   elements.randomExtend.checked = true; // 默认启用随机延长
   elements.randomRange.value = "30";
   elements.outputFormat.value = "m4a"; // 默认使用 M4A 格式

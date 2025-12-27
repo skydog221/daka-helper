@@ -6,7 +6,10 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
-    "build": "electron-builder",
+    "dev:vite": "vite",
+    "build": "yarn build:web && yarn build:electron",
+    "build:web": "vite build --config vite.config.web.js",
+    "build:electron": "vite build --config vite.config.js && electron-builder",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -18,10 +21,12 @@
   "author": "skydog221 @ Github",
   "license": "MPL-2.0",
   "dependencies": {
-    "fluent-ffmpeg": "^2.1.2"
+    "lamejs": "^1.2.1"
   },
   "devDependencies": {
     "electron": "^36.3.2",
-    "electron-builder": "^24.13.3"
+    "electron-builder": "^24.13.3",
+    "vite": "^7.3.0",
+    "vite-plugin-singlefile": "^2.3.0"
   }
 }
