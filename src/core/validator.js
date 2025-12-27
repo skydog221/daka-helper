@@ -190,13 +190,13 @@ export class Validator {
     // 验证目标时长
     const durationValidation = this.validateTargetDuration(targetMinutes, targetSeconds);
     if (!durationValidation.valid) {
-      return { valid: false, error: durationValidation.error, data: null };
+      return { valid: false, error: durationValidation.message, data: null };
     }
     
     // 验证延长设置
     const extendValidation = this.validateExtend(extendEnabled, extendSeconds);
     if (!extendValidation.valid) {
-      return { valid: false, error: extendValidation.error, data: null };
+      return { valid: false, error: extendValidation.message, data: null };
     }
     
     // 验证输出格式

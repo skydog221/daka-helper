@@ -14,8 +14,14 @@ import { AudioEncoder } from '../encoders/audio-encoder.js';
 
 // 导入平台适配器
 import { PlatformDetector } from '../adapters/platform-detector.js';
-import { ConfigStorage } from '../adapters/config-storage.js';
-import { FileHandler } from '../adapters/file-handler.js';
+import { ConfigStorage, getConfigStorage } from '../adapters/config-storage.js';
+import { getFileHandler } from '../adapters/file-handler.js';
+
+// 获取文件处理器单例
+const fileHandler = getFileHandler();
+
+// 获取配置存储单例
+const configStorage = getConfigStorage();
 
 // 音频上下文
 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -113,7 +119,7 @@ function setupEventListeners() {
  */
 async function loadConfig() {
   try {
-    const config = await ConfigStorage.get('userSettings');
+    const config = configStorage.get('userSettings');
     if (config) {
       if (config.outputFormat) {
         elements.outputFormat.value = config.outputFormat;
@@ -142,7 +148,7 @@ async function saveConfig() {
       randomExtend: elements.randomExtend.checked,
       randomRange: parseInt(elements.randomRange.value) || 30,
     };
-    await ConfigStorage.set('userSettings', config);
+    await configStorage.set('userSettings', config);
   } catch (error) {
     console.error('[App] 保存配置失败:', error);
   }
@@ -153,7 +159,7 @@ async function saveConfig() {
  */
 async function selectFile() {
   try {
-    const file = await FileHandler.selectFile({
+    const file = await fileHandler.selectFile({
       accept: 'audio/*',
       multiple: false,
     });
@@ -332,6 +338,7 @@ async function processAudio() {
     const repeatedBuffer = await AudioRepeater.repeatAudio(
       appState.audioBuffer,
       finalDuration,
+      audioContext,
       (progress) => {
         showProgress('正在重复音频...', 10 + progress * 0.6);
       }
@@ -348,10 +355,9 @@ async function processAudio() {
     // 保存文件
     showProgress('正在保存文件...', 95);
     const fileName = generateOutputFileName(appState.audioInfo.name, finalDuration, outputFormat);
+    const mimeType = outputFormat === 'mp3' ? 'audio/mpeg' : 'audio/wav';
     
-    await FileHandler.saveFile(audioBlob, fileName, {
-      mimeType: outputFormat === 'mp3' ? 'audio/mpeg' : 'audio/wav',
-    });
+    await fileHandler.saveAudioFile(audioBlob, fileName, mimeType);
 
     showProgress('处理完成！', 100);
     
