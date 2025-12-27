@@ -5,7 +5,7 @@
 // 支持的音频格式
 export const AUDIO_FORMATS = {
   WAV: 'wav',
-  MP3: 'mp3',
+  MP3: 'mp3',     // 仅支持输入，不支持输出
   FLAC: 'flac',
   M4A: 'm4a',
   OGG: 'ogg'
@@ -21,14 +21,6 @@ export const OUTPUT_FORMATS = {
     bitDepth: 16,
     recommended: true, // 默认推荐
     description: '无损格式，文件较大，编码速度极快（<100ms）'
-  },
-  [AUDIO_FORMATS.MP3]: {
-    name: 'MP3',
-    label: 'MP3（192kbps，高质量）',
-    mime: 'audio/mpeg',
-    extension: '.mp3',
-    bitRate: 192, // kbps
-    description: '有损压缩，文件小，音质接近 CD，编码速度快'
   }
 };
 
@@ -68,13 +60,13 @@ export const SAMPLE_RATES = {
   HD_QUALITY: 96000     // 高清音质
 };
 
-// 比特率配置（MP3）
-export const BIT_RATES = {
-  LOW: 128,       // 低质量
-  STANDARD: 192,  // 标准质量（默认）
-  HIGH: 256,      // 高质量
-  EXTREME: 320    // 极限质量
-};
+// 比特率配置（已废弃，MP3 输出格式已移除）
+// export const BIT_RATES = {
+//   LOW: 128,       // 低质量
+//   STANDARD: 192,  // 标准质量（默认）
+//   HIGH: 256,      // 高质量
+//   EXTREME: 320    // 极限质量
+// };
 
 // 时间限制
 export const TIME_LIMITS = {
@@ -101,7 +93,7 @@ export const FILE_SIZE_LIMITS = {
 export const UI_TEXT = {
   APP_NAME: '打卡音频生成器',
   VERSION: '2.0.0',
-  DESCRIPTION: '统一架构版本 - 支持 WAV 和 MP3 输出',
+  DESCRIPTION: '统一架构版本 - 支持 WAV 输出',
   
   // 按钮文本
   BUTTON_SELECT_FILE: '选择音频文件',
@@ -113,7 +105,7 @@ export const UI_TEXT = {
   HINT_SELECT_FILE: '支持 MP3, WAV, FLAC, M4A, OGG 格式',
   HINT_DURATION: '输入目标时长（分钟和秒）',
   HINT_EXTEND: '延长时长可避免被识别为机器打卡',
-  HINT_FORMAT: 'WAV 格式速度极快，MP3 格式文件更小',
+  HINT_FORMAT: 'WAV 格式速度极快（瞬间完成）',
   
   // 错误信息
   ERROR_NO_FILE: '请先选择音频文件',
@@ -140,7 +132,6 @@ export const UI_TEXT = {
 // 性能指标
 export const PERFORMANCE = {
   WAV_ENCODE_TIME: 100,     // WAV 编码时间（ms）
-  MP3_SPEED_FACTOR: 28,     // MP3 编码速度系数（192kbps）
   MAX_PROCESSING_TIME: 300  // 最大处理时间（秒）
 };
 

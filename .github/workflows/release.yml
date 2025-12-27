@@ -17,25 +17,25 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
+            target: web
+            node-version: "20"
+            artifact_name: dist-web
+            build_command: yarn build:web
+          - os: ubuntu-latest
             target: linux
             node-version: "20"
             artifact_name: dist-linux
-            build_command_suffix: --linux
-          - os: ubuntu-latest # Android 在 Ubuntu 上构建
-            target: android
-            node-version: "20"
-            artifact_name: dist-android
-            build_command_suffix: --android
+            build_command: yarn build:electron
           - os: macos-latest
             target: mac
             node-version: "20"
             artifact_name: dist-mac
-            build_command_suffix: --mac
+            build_command: yarn build:electron
           - os: windows-latest
             target: win
             node-version: "20"
             artifact_name: dist-win
-            build_command_suffix: --win
+            build_command: yarn build:electron
 
     steps:
       - name: 检出代码
@@ -58,15 +58,16 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: 执行构建
-        run: yarn electron-builder ${{ matrix.build_command_suffix }}
+        run: ${{ matrix.build_command }}
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}# electron-builder 可能需要 GITHUB_TOKEN 来发布
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 上传构建产物 (${{ matrix.target }})
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: | # electron-builder 的输出目录通常是 dist/
+          path: |
+            dist/web/index.html
             dist/**/*.AppImage
             dist/**/*.snap
             dist/**/*.deb
@@ -105,9 +106,9 @@ jobs:
       - name: 创建 GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: | # 指向包含所有平台产物的路径
+          files: |
+            all-artifacts/dist-web/*
             all-artifacts/dist-linux/*
-            all-artifacts/dist-android/*
             all-artifacts/dist-mac/*
             all-artifacts/dist-win/*
           token: ${{ secrets.GITHUB_TOKEN }}

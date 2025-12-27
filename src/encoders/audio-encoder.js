@@ -1,17 +1,15 @@
 /**
  * 统一音频编码器接口
- * 集成 WAV 和 MP3 编码器，提供统一的编码接口
+ * 提供 WAV 编码支持
  */
 import { WavEncoder } from './wav-encoder.js';
-import { Mp3Encoder } from './mp3-encoder.js';
 
 export class AudioEncoder {
   /**
    * 支持的输出格式
    */
   static OUTPUT_FORMATS = {
-    WAV: 'wav',
-    MP3: 'mp3'
+    WAV: 'wav'
   };
   
   /**
@@ -28,17 +26,6 @@ export class AudioEncoder {
       sizeMultiplier: 10.8, // 每秒约 10.8MB（44.1kHz 立体声）
       recommended: true,
       encoder: WavEncoder
-    },
-    mp3: {
-      name: 'MP3',
-      description: 'MP3 压缩音频',
-      extension: '.mp3',
-      mimeType: 'audio/mpeg',
-      quality: '高品质（192kbps）',
-      speed: '快（~28x 实时）',
-      sizeMultiplier: 0.024, // 192kbps ≈ 0.024MB/s
-      recommended: false,
-      encoder: Mp3Encoder
     }
   };
   
@@ -133,18 +120,8 @@ export class AudioEncoder {
       throw new Error(`未知格式: ${format}`);
     }
     
-    let milliseconds;
-    
-    if (format === 'wav') {
-      // WAV 编码极快，基本恒定时间
-      milliseconds = parseFloat(WavEncoder.estimateEncodeTime(duration));
-    } else if (format === 'mp3') {
-      // MP3 编码时间与音频时长相关
-      milliseconds = parseFloat(Mp3Encoder.estimateEncodeTime(duration, 192));
-    } else {
-      milliseconds = 0;
-    }
-    
+    // WAV 编码极快，基本恒定时间
+    const milliseconds = parseFloat(WavEncoder.estimateEncodeTime(duration));
     const seconds = milliseconds / 1000;
     
     let formatted;
@@ -167,33 +144,10 @@ export class AudioEncoder {
    * @returns {object} 推荐信息 { format, reason }
    */
   static getFormatRecommendation(duration) {
-    // 短于 10 分钟：推荐 WAV（速度优势明显，文件大小可接受）
-    if (duration < 600) {
-      return {
-        format: 'wav',
-        reason: '音频时长较短，WAV 格式编码速度极快（<100ms），文件大小可接受'
-      };
-    }
-    
-    // 10-30 分钟：仍推荐 WAV，但提示可选 MP3
-    if (duration < 1800) {
-      const wavSize = this.estimateFileSize(duration, 'wav');
-      const mp3Size = this.estimateFileSize(duration, 'mp3');
-      
-      return {
-        format: 'wav',
-        reason: `WAV 编码速度极快，文件大小约 ${wavSize.formatted}。如需节省空间，可选择 MP3（约 ${mp3Size.formatted}）`
-      };
-    }
-    
-    // 超过 30 分钟：推荐 MP3（文件大小差异显著）
     const wavSize = this.estimateFileSize(duration, 'wav');
-    const mp3Size = this.estimateFileSize(duration, 'mp3');
-    const mp3Time = this.estimateEncodeTime(duration, 'mp3');
-    
     return {
-      format: 'mp3',
-      reason: `音频时长较长，建议使用 MP3 格式节省空间。WAV: ${wavSize.formatted}，MP3: ${mp3Size.formatted}（编码时间约 ${mp3Time.formatted}）`
+      format: 'wav',
+      reason: `WAV 格式编码速度极快（<100ms），文件大小约 ${wavSize.formatted}`
     };
   }
   

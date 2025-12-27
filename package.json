@@ -20,9 +20,7 @@
   ],
   "author": "skydog221 @ Github",
   "license": "MPL-2.0",
-  "dependencies": {
-    "lamejs": "^1.2.1"
-  },
+  "dependencies": {},
   "devDependencies": {
     "electron": "^36.3.2",
     "electron-builder": "^24.13.3",

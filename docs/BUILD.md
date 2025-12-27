@@ -86,7 +86,6 @@ yarn build:web
 - 所有资源内联到单个 HTML 文件
 - 无需额外的 CSS 或 JS 文件
 - 可直接在浏览器中打开
-- 使用 CDN 加载 lamejs 库（MP3 编码）
 
 ## 5. 构建 Electron 版本
 
@@ -201,9 +200,6 @@ yarn build:electron --publish always
 
 ## 9. 常见问题
 
-### Q: Web 构建后 lamejs 无法加载
-
-**A**: 检查网络连接，lamejs 通过 CDN 加载。如需离线使用，可以将 lamejs 库本地化。
 
 ### Q: Electron 构建失败
 
@@ -211,17 +207,6 @@ yarn build:electron --publish always
 - 依赖未正确安装：运行 `yarn install`
 - 权限问题（Windows）：以管理员身份运行
 - 磁盘空间不足：Electron 打包需要较大临时空间
-
-### Q: 如何更改 MP3 比特率
-
-**A**: 修改 `src/core/constants.js` 中的 `MP3_BITRATE` 值：
-
-```javascript
-export const AUDIO_CONSTANTS = {
-  MP3_BITRATE: 192,  // 可改为 128、256、320 等
-  // ...
-};
-```
 
 ### Q: 如何添加新的输出格式
 
