@@ -34,10 +34,14 @@ const appState = {
   audioInfo: null,
   isProcessing: false,
   recordingInterval: null,
+  mode: 'record', // 'record' 或 'upload'
 };
 
 // DOM 元素引用
 const elements = {
+  modeRecord: document.getElementById('modeRecord'),
+  modeUpload: document.getElementById('modeUpload'),
+  recordingSection: document.querySelector('.recording-section'),
   fileUploadArea: document.getElementById('fileUploadArea'),
   selectFileBtn: document.getElementById('selectFileBtn'),
   fileInfo: document.getElementById('fileInfo'),
@@ -239,6 +243,10 @@ function stopWaveformAnimation() {
  * 设置事件监听器
  */
 function setupEventListeners() {
+  // 模式切换
+  elements.modeRecord.addEventListener('click', () => switchMode('record'));
+  elements.modeUpload.addEventListener('click', () => switchMode('upload'));
+
   // 文件选择
   elements.selectFileBtn.addEventListener('click', selectFile);
   elements.changeFileBtn.addEventListener('click', selectFile);
@@ -592,6 +600,28 @@ function formatFileSize(bytes) {
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+/**
+ * 切换模式
+ */
+function switchMode(mode) {
+  if (appState.mode === mode) return;
+  
+  appState.mode = mode;
+  
+  // 更新模式按钮状态
+  elements.modeRecord.classList.toggle('active', mode === 'record');
+  elements.modeUpload.classList.toggle('active', mode === 'upload');
+  
+  // 切换显示/隐藏录音区域
+  if (mode === 'record') {
+    elements.recordingSection.classList.remove('hidden');
+  } else {
+    elements.recordingSection.classList.add('hidden');
+  }
+  
+  console.log(`[App] 切换到${mode === 'record' ? '录音' : '上传'}模式`);
 }
 
 /**
