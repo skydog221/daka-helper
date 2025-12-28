@@ -16,6 +16,34 @@
 
       <!-- 主要内容区域 -->
       <main class="main-content">
+        <!-- 录音功能区域 -->
+        <section class="recording-section">
+          <h2>录音功能</h2>
+          
+          <!-- 录音状态显示 -->
+          <div id="recording-status">
+            <span id="recording-state">未开始录音</span>
+            <span id="recording-duration">00:00:00</span>
+          </div>
+          
+          <!-- 录音波形可视化 -->
+          <div id="waveform-visualizer">
+            <canvas id="waveform-canvas"></canvas>
+          </div>
+          
+          <!-- 录音控制按钮 -->
+          <div id="recording-controls">
+            <button id="btn-start-recording" class="btn btn-primary">开始录音</button>
+            <button id="btn-pause-recording" class="btn btn-secondary" disabled>暂停</button>
+            <button id="btn-stop-recording" class="btn btn-danger" disabled>停止</button>
+          </div>
+          
+          <!-- 录音信息 -->
+          <div id="recording-info" class="info-box" style="display: none;">
+            <p>文件大小: <span id="recording-size">-</span></p>
+          </div>
+        </section>
+
         <!-- 文件选择区域 -->
         <section class="file-section">
           <div class="file-upload-area" id="fileUploadArea">
