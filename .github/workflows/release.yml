@@ -67,20 +67,8 @@ jobs:
         with:
           name: ${{ matrix.artifact_name }}
           path: |
-            dist/web/index.html
-            dist/**/*.AppImage
-            dist/**/*.snap
-            dist/**/*.deb
-            dist/**/*.rpm
-            dist/**/*.zip
-            dist/**/*.tar.gz
-            dist/**/*.dmg
-            dist/**/*.pkg
-            dist/**/*.mas
-            dist/**/*.exe
-            dist/**/*.msi
-            dist/**/*.apk
-
+            ${{ matrix.target == 'web' && 'dist/web/index.html' || '' }}
+            ${{ matrix.target != 'web' && 'dist/installer/**/*' || '' }}
           if-no-files-found: error # 如果没有找到文件则报错
 
   release:
@@ -107,7 +95,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            all-artifacts/dist-web/*
+            all-artifacts/dist-web/index.html
             all-artifacts/dist-linux/*
             all-artifacts/dist-mac/*
             all-artifacts/dist-win/*
