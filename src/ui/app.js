@@ -85,7 +85,7 @@ const elements = {
   errorContainer: document.getElementById('errorContainer'),
   errorMessage: document.getElementById('errorMessage'),
   retryBtn: document.getElementById('retryBtn'),
-  
+
   // 录音相关元素
   btnStartRecording: document.getElementById('btn-start-recording'),
   btnPauseRecording: document.getElementById('btn-pause-recording'),
@@ -108,7 +108,7 @@ let animationId = null;
  */
 async function initApp() {
   console.log(`[App] 初始化应用，平台: ${PlatformDetector.isElectron() ? 'Electron' : 'Web'}`);
-  
+
   setupEventListeners();
   await loadConfig();
   setupWaveformVisualizer();
@@ -124,20 +124,20 @@ function setupWaveformVisualizer() {
     console.error('[App] waveformCanvas 元素不存在');
     return;
   }
-  
+
   const canvas = elements.waveformCanvas;
   const ctx = canvas.getContext('2d');
   console.log('[App] Canvas 尺寸:', canvas.offsetWidth, 'x', canvas.offsetHeight);
-  
+
   // 设置canvas尺寸
   canvas.width = canvas.offsetWidth * window.devicePixelRatio;
   canvas.height = canvas.offsetHeight * window.devicePixelRatio;
   ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-  
+
   // 绘制初始波形（直线）
   drawWaveform(ctx, canvas.width, canvas.height, []);
   console.log('[App] 初始波形绘制完成');
-  
+
   // 监听窗口大小变化
   window.addEventListener('resize', () => {
     canvas.width = canvas.offsetWidth * window.devicePixelRatio;
@@ -156,13 +156,13 @@ function setupWaveformVisualizer() {
  */
 function drawWaveform(ctx, width, height, data) {
   ctx.clearRect(0, 0, width, height);
-  
+
   // 设置样式
   ctx.lineWidth = 2;
   ctx.strokeStyle = '#28684f';
   ctx.fillStyle = 'rgba(102, 126, 234, 0.2)';
   ctx.beginPath();
-  
+
   if (data.length === 0) {
     // 没有数据时绘制中线
     ctx.moveTo(0, height / 2);
@@ -170,25 +170,25 @@ function drawWaveform(ctx, width, height, data) {
     ctx.stroke();
     return;
   }
-  
+
   const barWidth = width / data.length;
-  
+
   // 绘制波形
   for (let i = 0; i < data.length; i++) {
     const barHeight = (data[i] / 255) * height * 0.8;
     const x = i * barWidth;
     const y = (height - barHeight) / 2;
-    
+
     ctx.fillRect(x, y, barWidth - 1, barHeight);
   }
-  
+
   // 绘制轮廓
   ctx.moveTo(0, height / 2);
   for (let i = 0; i < data.length; i++) {
     const barHeight = (data[i] / 255) * height * 0.8;
     const x = i * barWidth + barWidth / 2;
     const y = (height - barHeight) / 2;
-    
+
     if (i === 0) {
       ctx.moveTo(x, y);
     } else {
@@ -203,29 +203,29 @@ function drawWaveform(ctx, width, height, data) {
  */
 function startWaveformAnimation() {
   console.log('[App] startWaveformAnimation 被调用');
-  
+
   if (animationId) {
     console.log('[App] 动画已在运行，忽略重复调用');
     return;
   }
-  
+
   // 获取音频分析器
   analyser = AudioRecorder.getAnalyser();
   console.log('[App] 获取到的analyser:', analyser);
-  
+
   if (!analyser) {
     console.warn('[App] 音频分析器未初始化');
     return;
   }
-  
+
   // 创建数据缓冲区
   const bufferLength = analyser.frequencyBinCount;
   console.log('[App] bufferLength:', bufferLength);
   dataArray = new Uint8Array(bufferLength);
-  
+
   const canvas = elements.waveformCanvas;
   const ctx = canvas.getContext('2d');
-  
+
   function animate() {
     if (analyser && dataArray) {
       analyser.getByteFrequencyData(dataArray);
@@ -233,7 +233,7 @@ function startWaveformAnimation() {
     }
     animationId = requestAnimationFrame(animate);
   }
-  
+
   console.log('[App] 开始动画循环');
   animate();
 }
@@ -272,7 +272,7 @@ function setupEventListeners() {
       selectFile();
     }
   });
-  
+
   // 拖拽上传
   elements.fileUploadArea.addEventListener('dragover', handleDragOver);
   elements.fileUploadArea.addEventListener('drop', handleDrop);
@@ -557,7 +557,10 @@ async function processAudio() {
 
     console.log(`[App] 开始处理音频，目标时长: ${TimeCalculator.formatDurationVerbose(finalDuration)}`);
 
-    // 重复音频
+    // 让重复阶段直接使用输出规格，避免创建高采样率中间缓冲区。
+    const outputFormat = elements.outputFormat.value;
+    const processingOptions = AudioEncoder.getProcessingOptions(outputFormat);
+
     showProgress('正在重复音频...', 10);
     const repeatedBuffer = await AudioRepeater.repeatAudio(
       appState.audioBuffer,
@@ -565,27 +568,26 @@ async function processAudio() {
       audioContext,
       (progress) => {
         showProgress('正在重复音频...', 10 + progress * 0.6);
-      }
+      },
+      processingOptions
     );
 
     // 编码音频
-    const outputFormat = elements.outputFormat.value;
     showProgress(`正在编码为 ${outputFormat.toUpperCase()}...`, 70);
-
-    const audioBlob = await AudioEncoder.encode(repeatedBuffer, outputFormat);
+    const audioBlob = await AudioEncoder.encode(repeatedBuffer, outputFormat, processingOptions);
 
     // 保存文件
     showProgress('正在保存文件...', 95);
     const fileName = generateOutputFileName(appState.audioInfo.name, finalDuration, outputFormat);
     const mimeType = 'audio/wav';
-    
+
     await fileHandler.saveAudioFile(audioBlob, fileName, mimeType);
 
     showProgress('处理完成！', 100);
-    
+
     // 显示结果
-    const extendInfo = elements.randomExtend.checked 
-      ? ` (含${finalDuration - baseDuration}秒随机延长)` 
+    const extendInfo = elements.randomExtend.checked
+      ? ` (含${finalDuration - baseDuration}秒随机延长)`
       : '';
     showResult(`音频文件处理完成！总时长：${TimeCalculator.formatDurationVerbose(finalDuration)}${extendInfo}`);
 
@@ -637,7 +639,7 @@ function resetApp() {
   appState.audioBuffer = null;
   appState.audioInfo = null;
   appState.isProcessing = false;
-  
+
   hideResult();
   hideError();
   hideProgress();
@@ -660,20 +662,20 @@ function formatFileSize(bytes) {
  */
 function switchMode(mode) {
   if (appState.mode === mode) return;
-  
+
   appState.mode = mode;
-  
+
   // 更新模式按钮状态
   elements.modeRecord.classList.toggle('active', mode === 'record');
   elements.modeUpload.classList.toggle('active', mode === 'upload');
-  
+
   // 切换显示/隐藏录音区域
   if (mode === 'record') {
     elements.recordingSection.classList.remove('hidden');
   } else {
     elements.recordingSection.classList.add('hidden');
   }
-  
+
   console.log(`[App] 切换到${mode === 'record' ? '录音' : '上传'}模式`);
 }
 
@@ -685,7 +687,7 @@ function updateUI() {
   if (appState.audioInfo) {
     elements.fileUploadArea.style.display = 'none';
     elements.fileInfo.style.display = 'flex';
-    
+
     elements.fileName.textContent = appState.audioInfo.name;
     elements.fileSize.textContent = formatFileSize(appState.audioInfo.size);
     elements.fileDuration.textContent = TimeCalculator.formatDuration(appState.audioInfo.duration);
@@ -699,7 +701,7 @@ function updateUI() {
   const minutes = parseInt(elements.targetMinutes.value) || 0;
   const seconds = parseInt(elements.targetSeconds.value) || 0;
   const validation = Validator.validateTargetDuration(minutes, seconds);
-  
+
   const canProcess = appState.audioBuffer && validation.valid && !appState.isProcessing;
   elements.processBtn.disabled = !canProcess;
   if (appState.isProcessing) {
@@ -736,7 +738,7 @@ function hideProgress() {
 function showResult(message) {
   elements.resultContainer.style.display = 'block';
   elements.resultMessage.textContent = message;
-  
+
   // 在 Web 环境下隐藏"打开文件夹"按钮
   if (!PlatformDetector.isElectron()) {
     elements.openFolderBtn.style.display = 'none';
@@ -767,19 +769,19 @@ async function handleStartRecording() {
     console.log('[App] 正在调用 AudioRecorder.startRecording...');
     await AudioRecorder.startRecording({
       mimeType: 'audio/webm;codecs=opus',
-      audioBitsPerSecond: 16000,
+      audioBitsPerSecond: 8000,
       onProgress: updateRecordingDuration,
       onError: handleRecordingError
     });
-    
+
     console.log('[App] AudioRecorder.startRecording 完成，更新UI...');
     updateRecordingUI();
     startRecordingTimer();
-    
+
     // 启动波形动画
     console.log('[App] 启动波形动画...');
     startWaveformAnimation();
-    
+
     console.log('[App] 开始录音成功');
   } catch (error) {
     console.error('[App] 开始录音失败:', error);
@@ -793,27 +795,27 @@ async function handleStartRecording() {
 async function handlePauseRecording() {
   try {
     const state = AudioRecorder.getRecordingState();
-    
+
     if (state === AudioRecorder.State.RECORDING) {
       await AudioRecorder.pauseRecording();
       elements.btnPauseRecording.textContent = '继续';
       stopRecordingTimer();
-      
+
       // 停止波形动画
       stopWaveformAnimation();
-      
+
       console.log('[App] 暂停录音');
     } else if (state === AudioRecorder.State.PAUSED) {
       await AudioRecorder.resumeRecording();
       elements.btnPauseRecording.textContent = '暂停';
       startRecordingTimer();
-      
+
       // 启动波形动画
       startWaveformAnimation();
-      
+
       console.log('[App] 恢复录音');
     }
-    
+
     updateRecordingUI();
   } catch (error) {
     console.error('[App] 暂停/恢复录音失败:', error);
@@ -828,23 +830,23 @@ async function handleStopRecording() {
   try {
     const blob = await AudioRecorder.stopRecording();
     stopRecordingTimer();
-    
+
     // 停止波形动画
     stopWaveformAnimation();
-    
+
     // 更新录音信息
     const fileSize = blob.size;
     elements.recordingSize.textContent = formatFileSize(fileSize);
     elements.recordingInfo.style.display = 'block';
-    
+
     updateRecordingUI();
-    
+
     // 非阻塞对话框询问是否使用录音（问题6修复）
     const shouldUseRecording = await promptUseRecording(fileSize);
     if (shouldUseRecording) {
       await loadRecordingBlob(blob);
     }
-    
+
     console.log('[App] 停止录音，大小:', fileSize);
   } catch (error) {
     console.error('[App] 停止录音失败:', error);
@@ -858,10 +860,10 @@ async function handleStopRecording() {
 async function loadRecordingBlob(blob) {
   try {
     showProgress('正在解码录音...', 50);
-    
+
     const arrayBuffer = await blob.arrayBuffer();
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-    
+
     // 验证音频缓冲区
     const bufferValidation = Validator.validateAudioBuffer(audioBuffer);
     if (!bufferValidation.valid) {
@@ -869,7 +871,7 @@ async function loadRecordingBlob(blob) {
       hideProgress();
       return;
     }
-    
+
     // 更新状态
     appState.audioBuffer = audioBuffer;
     appState.audioInfo = {
@@ -880,11 +882,11 @@ async function loadRecordingBlob(blob) {
       sampleRate: audioBuffer.sampleRate,
       channels: audioBuffer.numberOfChannels,
     };
-    
+
     hideProgress();
     hideError();
     updateUI();
-    
+
     console.log('[App] 录音加载成功:', appState.audioInfo);
   } catch (error) {
     console.error('[App] 录音解码失败:', error);
@@ -900,7 +902,7 @@ function updateRecordingDuration(duration) {
   const hours = Math.floor(duration / 3600);
   const minutes = Math.floor((duration % 3600) / 60);
   const seconds = Math.floor(duration % 60);
-  
+
   elements.recordingDuration.textContent =
     `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
@@ -916,9 +918,9 @@ function updateRecordingUI() {
     'paused': '已暂停',
     'stopped': '录音完成'
   };
-  
+
   elements.recordingState.textContent = stateTexts[state] || '未知状态';
-  
+
   // 更新按钮状态
   elements.btnStartRecording.disabled = state !== AudioRecorder.State.IDLE;
   elements.btnPauseRecording.disabled = state === AudioRecorder.State.IDLE || state === AudioRecorder.State.STOPPED;
@@ -951,13 +953,13 @@ function stopRecordingTimer() {
  */
 function handleRecordingError(error) {
   console.error('[App] 录音错误:', error);
-  
+
   // 停止波形动画
   stopWaveformAnimation();
-  
+
   // 重置录音器状态（问题3修复）
   AudioRecorder.reset();
-  
+
   stopRecordingTimer();
   showError(error.message);
   updateRecordingUI();
@@ -989,7 +991,7 @@ async function promptUseRecording(fileSize) {
       justify-content: center;
       z-index: 1000;
     `;
-    
+
     const dialog = document.createElement('div');
     dialog.style.cssText = `
       background: white;
@@ -999,7 +1001,7 @@ async function promptUseRecording(fileSize) {
       max-width: 400px;
       width: 90%;
     `;
-    
+
     dialog.innerHTML = `
       <h3 style="margin: 0 0 16px 0; font-size: 18px; color: #333;">录音已完成</h3>
       <p style="margin: 0 0 24px 0; color: #666; line-height: 1.5;">
@@ -1026,24 +1028,24 @@ async function promptUseRecording(fileSize) {
         ">使用录音</button>
       </div>
     `;
-    
+
     modal.appendChild(dialog);
     document.body.appendChild(modal);
-    
+
     // 绑定事件
     const btnCancel = dialog.querySelector('#btn-cancel');
     const btnConfirm = dialog.querySelector('#btn-confirm');
-    
+
     btnCancel.addEventListener('click', () => {
       document.body.removeChild(modal);
       resolve(false);
     });
-    
+
     btnConfirm.addEventListener('click', () => {
       document.body.removeChild(modal);
       resolve(true);
     });
-    
+
     // ESC键取消
     const handleEsc = (e) => {
       if (e.key === 'Escape') {

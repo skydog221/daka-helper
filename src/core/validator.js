@@ -17,7 +17,7 @@ export class Validator {
         error: UI_TEXT.ERROR_NO_FILE
       };
     }
-    
+
     // 验证文件大小
     const fileSizeMB = file.size / (1024 * 1024);
     if (fileSizeMB > FILE_SIZE_LIMITS.MAX_INPUT_SIZE) {
@@ -26,10 +26,10 @@ export class Validator {
         error: `${UI_TEXT.ERROR_FILE_TOO_LARGE}（最大 ${FILE_SIZE_LIMITS.MAX_INPUT_SIZE}MB）`
       };
     }
-    
+
     return { valid: true, error: null };
   }
-  
+
   /**
    * 验证音频缓冲区
    * @param {AudioBuffer} buffer - 音频缓冲区
@@ -42,17 +42,17 @@ export class Validator {
         error: UI_TEXT.ERROR_DECODE_FAILED
       };
     }
-    
+
     if (buffer.duration <= 0) {
       return {
         valid: false,
         error: '音频时长无效'
       };
     }
-    
+
     return { valid: true, error: null };
   }
-  
+
   /**
    * 验证目标时长（分钟和秒）
    * @param {number} minutes - 分钟数
@@ -68,7 +68,7 @@ export class Validator {
         duration: 0
       };
     }
-    
+
     // 验证范围
     if (minutes < 0 || seconds < 0) {
       return {
@@ -77,7 +77,7 @@ export class Validator {
         duration: 0
       };
     }
-    
+
     if (seconds > 59) {
       return {
         valid: false,
@@ -85,11 +85,11 @@ export class Validator {
         duration: 0
       };
     }
-    
+
     // 计算总时长并验证
     const totalDuration = TimeCalculator.minutesToSeconds(minutes, seconds);
     const durationValidation = TimeCalculator.validateDuration(totalDuration);
-    
+
     if (!durationValidation.valid) {
       return {
         valid: false,
@@ -97,14 +97,14 @@ export class Validator {
         duration: totalDuration
       };
     }
-    
+
     return {
       valid: true,
       message: '验证通过',
       duration: totalDuration
     };
   }
-  
+
   /**
    * 验证延长设置
    * @param {boolean} enabled - 是否启用延长
@@ -115,14 +115,14 @@ export class Validator {
     if (!enabled) {
       return { valid: true, message: '验证通过' };
     }
-    
+
     if (typeof seconds !== 'number' || isNaN(seconds)) {
       return {
         valid: false,
         message: '延长秒数必须是数字'
       };
     }
-    
+
     const secondsValidation = TimeCalculator.validateExtendSeconds(seconds);
     if (!secondsValidation.valid) {
       return {
@@ -130,28 +130,28 @@ export class Validator {
         message: secondsValidation.message || secondsValidation.error || '延长秒数验证失败'
       };
     }
-    
+
     return { valid: true, message: '验证通过' };
   }
-  
+
   /**
    * 验证输出格式
    * @param {string} format - 输出格式
    * @returns {{valid: boolean, error: string|null}} 验证结果
    */
   static validateOutputFormat(format) {
-    const validFormats = ['wav', 'mp3'];
-    
+    const validFormats = ['wav'];
+
     if (!format || !validFormats.includes(format.toLowerCase())) {
       return {
         valid: false,
         error: `不支持的输出格式: ${format}。支持的格式: ${validFormats.join(', ')}`
       };
     }
-    
+
     return { valid: true, error: null };
   }
-  
+
   /**
    * 验证处理配置（综合验证）
    * @param {object} config - 处理配置
@@ -174,43 +174,43 @@ export class Validator {
       extendSeconds,
       outputFormat
     } = config;
-    
+
     // 验证文件
     const fileValidation = this.validateFile(file);
     if (!fileValidation.valid) {
       return { valid: false, error: fileValidation.error, data: null };
     }
-    
+
     // 验证音频缓冲区
     const bufferValidation = this.validateAudioBuffer(audioBuffer);
     if (!bufferValidation.valid) {
       return { valid: false, error: bufferValidation.error, data: null };
     }
-    
+
     // 验证目标时长
     const durationValidation = this.validateTargetDuration(targetMinutes, targetSeconds);
     if (!durationValidation.valid) {
       return { valid: false, error: durationValidation.message, data: null };
     }
-    
+
     // 验证延长设置
     const extendValidation = this.validateExtend(extendEnabled, extendSeconds);
     if (!extendValidation.valid) {
       return { valid: false, error: extendValidation.message, data: null };
     }
-    
+
     // 验证输出格式
     const formatValidation = this.validateOutputFormat(outputFormat);
     if (!formatValidation.valid) {
       return { valid: false, error: formatValidation.error, data: null };
     }
-    
+
     // 计算最终时长
     const baseDuration = durationValidation.duration;
     const finalDuration = extendEnabled
       ? TimeCalculator.calculateExtendedDuration(baseDuration, extendSeconds)
       : baseDuration;
-    
+
     // 返回验证通过的数据
     return {
       valid: true,
@@ -223,7 +223,7 @@ export class Validator {
       }
     };
   }
-  
+
   /**
    * 验证输出文件大小警告
    * @param {number} duration - 音频时长（秒）
@@ -232,22 +232,19 @@ export class Validator {
    */
   static validateOutputSize(duration, format) {
     let estimatedSize; // MB
-    
+
     if (format === 'wav') {
-      // WAV: 44100 Hz * 16 bit * 2 channels = 10.5 MB/min
-      estimatedSize = (duration / 60) * 10.5;
-    } else if (format === 'mp3') {
-      // MP3 192kbps: ~1.4 MB/min
-      estimatedSize = (duration / 60) * 1.4;
+      // 8kHz 单声道 8-bit PCM，约 0.46 MB/min（含 WAV 头部）
+      estimatedSize = (duration * 8000 + 44) / 1024 / 1024;
     } else {
       estimatedSize = 0;
     }
-    
+
     const shouldWarn = estimatedSize > FILE_SIZE_LIMITS.WARN_OUTPUT_SIZE;
     const message = shouldWarn
       ? `预计输出文件约 ${estimatedSize.toFixed(1)} MB，文件较大，处理可能需要较长时间`
       : null;
-    
+
     return {
       shouldWarn,
       message,

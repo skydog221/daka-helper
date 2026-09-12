@@ -1,47 +1,87 @@
 /**
  * WAV 编码器（纯 JavaScript 实现）
- * 特点：瞬间完成编码（<100ms），文件大但兼容性 100%
+ * 特点：瞬间完成编码（<100ms），语音优先、体积小且兼容性好
  */
 export class WavEncoder {
   /**
    * 将 AudioBuffer 编码为 WAV 格式
    * @param {AudioBuffer} audioBuffer - 音频缓冲区
+   * @param {object} options - 编码选项
+   * @param {number} options.targetSampleRate - 目标采样率
+   * @param {number} options.channels - 目标声道数（1 或 2）
+   * @param {number} options.bitDepth - 位深度（8 或 16）
    * @returns {Blob} WAV 格式的音频数据
    */
-  static encode(audioBuffer) {
+  static encode(audioBuffer, options = {}) {
+    const {
+      targetSampleRate = 8000,
+      channels = 1,
+      bitDepth = 8
+    } = options;
+
+    const sourceSampleRate = audioBuffer.sampleRate;
     const numberOfChannels = audioBuffer.numberOfChannels;
-    const sampleRate = audioBuffer.sampleRate;
-    const length = audioBuffer.length * numberOfChannels * 2; // 16-bit = 2 bytes per sample
-    
+    const outputSampleRate = Math.min(targetSampleRate, sourceSampleRate);
+    const outputChannels = channels === 1 ? 1 : Math.min(2, numberOfChannels);
+    const outputBitDepth = bitDepth === 8 ? 8 : 16;
+    const bytesPerSample = outputBitDepth / 8;
+    const sampleRateRatio = sourceSampleRate / outputSampleRate;
+    const outputLength = Math.floor(audioBuffer.length / sampleRateRatio);
+    const dataSize = outputLength * outputChannels * bytesPerSample;
+
     // 创建 WAV 文件：44 字节头部 + PCM 数据
-    const buffer = new ArrayBuffer(44 + length);
+    const buffer = new ArrayBuffer(44 + dataSize);
     const view = new DataView(buffer);
-    
+
     // RIFF 头部（12 字节）
     this.writeString(view, 0, 'RIFF');
-    view.setUint32(4, 36 + length, true); // 文件大小 - 8
+    view.setUint32(4, 36 + dataSize, true); // 文件大小 - 8
     this.writeString(view, 8, 'WAVE');
-    
+
     // fmt 子块（24 字节）
     this.writeString(view, 12, 'fmt ');
-    view.setUint32(16, 16, true);              // fmt 块大小
-    view.setUint16(20, 1, true);               // 音频格式 (1 = PCM)
-    view.setUint16(22, numberOfChannels, true); // 声道数
-    view.setUint32(24, sampleRate, true);      // 采样率
-    view.setUint32(28, sampleRate * numberOfChannels * 2, true); // 字节率
-    view.setUint16(32, numberOfChannels * 2, true); // 块对齐
-    view.setUint16(34, 16, true);              // 位深度 (16-bit)
-    
+    view.setUint32(16, 16, true);                 // fmt 块大小
+    view.setUint16(20, 1, true);                  // 音频格式 (1 = PCM)
+    view.setUint16(22, outputChannels, true);     // 声道数
+    view.setUint32(24, outputSampleRate, true);   // 采样率
+    view.setUint32(28, outputSampleRate * outputChannels * bytesPerSample, true); // 字节率
+    view.setUint16(32, outputChannels * bytesPerSample, true); // 块对齐
+    view.setUint16(34, outputBitDepth, true);     // 位深度
+
     // data 子块头部（8 字节）
     this.writeString(view, 36, 'data');
-    view.setUint32(40, length, true);          // PCM 数据大小
-    
-    // 写入 PCM 音频数据
-    this.floatTo16BitPCM(view, 44, audioBuffer);
-    
+    view.setUint32(40, dataSize, true);          // PCM 数据大小
+
+    // 准备声道数据
+    const sourceChannels = [];
+    for (let i = 0; i < numberOfChannels; i++) {
+      sourceChannels.push(audioBuffer.getChannelData(i));
+    }
+
+    // 写入 PCM 音频数据（重采样 + 单声道）
+    let offset = 44;
+    for (let i = 0; i < outputLength; i++) {
+      const sourceIndex = Math.floor(i * sampleRateRatio);
+
+      if (outputChannels === 1) {
+        let mixed = 0;
+        for (let c = 0; c < numberOfChannels; c++) {
+          mixed += sourceChannels[c][sourceIndex] || 0;
+        }
+        mixed = mixed / numberOfChannels;
+        offset = this.writeSample(view, offset, mixed, outputBitDepth);
+      } else {
+        for (let c = 0; c < outputChannels; c++) {
+          const channelIndex = Math.min(c, numberOfChannels - 1);
+          const sample = sourceChannels[channelIndex][sourceIndex] || 0;
+          offset = this.writeSample(view, offset, sample, outputBitDepth);
+        }
+      }
+    }
+
     return new Blob([buffer], { type: 'audio/wav' });
   }
-  
+
   /**
    * 将字符串写入 DataView
    * @private
@@ -51,34 +91,24 @@ export class WavEncoder {
       view.setUint8(offset + i, string.charCodeAt(i));
     }
   }
-  
+
   /**
-   * 将 Float32Array 音频数据转换为 16-bit PCM 格式
+   * 写入单个采样
    * @private
    */
-  static floatTo16BitPCM(output, offset, audioBuffer) {
-    const numberOfChannels = audioBuffer.numberOfChannels;
-    const length = audioBuffer.length;
-    
-    // 获取所有声道数据
-    const channels = [];
-    for (let i = 0; i < numberOfChannels; i++) {
-      channels.push(audioBuffer.getChannelData(i));
+  static writeSample(view, offset, sample, bitDepth) {
+    const clamped = Math.max(-1, Math.min(1, sample));
+    if (bitDepth === 8) {
+      const int8 = Math.round(clamped * 127 + 128);
+      view.setUint8(offset, int8);
+      return offset + 1;
     }
-    
-    // 交错写入多声道数据
-    let index = offset;
-    for (let i = 0; i < length; i++) {
-      for (let channel = 0; channel < numberOfChannels; channel++) {
-        // Float32 范围 [-1.0, 1.0] 转换为 Int16 范围 [-32768, 32767]
-        const sample = Math.max(-1, Math.min(1, channels[channel][i]));
-        const int16 = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
-        output.setInt16(index, int16, true); // little-endian
-        index += 2;
-      }
-    }
+
+    const int16 = clamped < 0 ? clamped * 0x8000 : clamped * 0x7FFF;
+    view.setInt16(offset, int16, true);
+    return offset + 2;
   }
-  
+
   /**
    * 获取 WAV 文件的预估大小（MB）
    * @param {number} duration - 音频时长（秒）
@@ -86,12 +116,13 @@ export class WavEncoder {
    * @param {number} sampleRate - 采样率
    * @returns {number} 文件大小（MB）
    */
-  static estimateSize(duration, channels = 2, sampleRate = 44100) {
-    const dataSize = duration * channels * sampleRate * 2; // 16-bit = 2 bytes
+  static estimateSize(duration, channels = 1, sampleRate = 8000, bitDepth = 8) {
+    const bytesPerSample = bitDepth / 8;
+    const dataSize = duration * channels * sampleRate * bytesPerSample;
     const totalSize = dataSize + 44; // 加上文件头
     return (totalSize / 1024 / 1024).toFixed(2);
   }
-  
+
   /**
    * 预估 WAV 编码时间（毫秒）
    * WAV 编码非常快，基本是固定开销

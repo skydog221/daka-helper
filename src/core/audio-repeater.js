@@ -11,63 +11,87 @@ export class AudioRepeater {
    * @param {Function} progressCallback - 进度回调函数 (progress: 0-100)
    * @returns {Promise<AudioBuffer>} 处理后的音频缓冲区
    */
-  static async repeatAudio(sourceBuffer, targetDuration, audioContext, progressCallback = null) {
+  static async repeatAudio(
+    sourceBuffer,
+    targetDuration,
+    audioContext,
+    progressCallback = null,
+    options = {}
+  ) {
     if (!sourceBuffer || !audioContext) {
       throw new Error('缺少必要的参数: sourceBuffer 和 audioContext');
     }
-    
+
     if (targetDuration <= 0) {
       throw new Error('目标时长必须大于 0');
     }
-    
-    const sampleRate = sourceBuffer.sampleRate;
-    const channels = sourceBuffer.numberOfChannels;
-    const totalSamples = Math.floor(targetDuration * sampleRate);
-    
-    // 创建新的音频缓冲区
-    const newBuffer = audioContext.createBuffer(
-      channels,
-      totalSamples,
-      sampleRate
+
+    // 直接在目标采样率生成重复结果，避免先创建高采样率中间 AudioBuffer。
+    const requestedSampleRate = options.sampleRate || options.targetSampleRate || sourceBuffer.sampleRate;
+    const outputSampleRate = Math.min(
+      sourceBuffer.sampleRate,
+      Math.max(8000, requestedSampleRate)
     );
-    
-    // 复制音频数据到各个声道
-    for (let channel = 0; channel < channels; channel++) {
-      const sourceData = sourceBuffer.getChannelData(channel);
-      const targetData = newBuffer.getChannelData(channel);
-      const sourceLength = sourceData.length;
-      
-      let offset = 0;
-      
-      while (offset < totalSamples) {
-        const remaining = totalSamples - offset;
-        const copyLength = Math.min(remaining, sourceLength);
-        
-        // 复制数据
-        targetData.set(sourceData.subarray(0, copyLength), offset);
-        offset += copyLength;
-        
-        // 报告进度（每复制一次源音频更新一次）
-        if (progressCallback) {
-          const progress = Math.floor((offset / totalSamples) * 100);
-          progressCallback(progress);
-        }
-        
-        // 让出控制权，避免阻塞 UI（每 5 秒让出一次）
-        if (offset % (sampleRate * 5) === 0) {
-          await new Promise(resolve => setTimeout(resolve, 0));
+    const outputChannels = options.channels === 1
+      ? 1
+      : Math.min(options.channels || sourceBuffer.numberOfChannels, sourceBuffer.numberOfChannels);
+    const sourceChannels = Array.from(
+      { length: sourceBuffer.numberOfChannels },
+      (_, channel) => sourceBuffer.getChannelData(channel)
+    );
+    const sourceLength = sourceBuffer.length;
+    const sourceDuration = sourceBuffer.duration;
+    const totalSamples = Math.max(1, Math.floor(targetDuration * outputSampleRate));
+    const sourceSamplesAtOutputRate = Math.max(1, Math.floor(sourceDuration * outputSampleRate));
+    const newBuffer = audioContext.createBuffer(outputChannels, totalSamples, outputSampleRate);
+    const outputData = Array.from(
+      { length: outputChannels },
+      (_, channel) => newBuffer.getChannelData(channel)
+    );
+    const chunkSize = Math.max(1, Math.floor(outputSampleRate));
+    let lastProgress = -1;
+
+    for (let start = 0; start < totalSamples; start += chunkSize) {
+      const end = Math.min(totalSamples, start + chunkSize);
+      for (let i = start; i < end; i += 1) {
+        const sourceFrameAtOutputRate = i % sourceSamplesAtOutputRate;
+        const sourceIndex = Math.min(
+          sourceLength - 1,
+          Math.floor(sourceFrameAtOutputRate * sourceBuffer.sampleRate / outputSampleRate)
+        );
+
+        if (outputChannels === 1) {
+          let mixed = 0;
+          for (const channelData of sourceChannels) {
+            mixed += channelData[sourceIndex] || 0;
+          }
+          outputData[0][i] = mixed / sourceChannels.length;
+        } else {
+          for (let channel = 0; channel < outputChannels; channel += 1) {
+            outputData[channel][i] = sourceChannels[channel][sourceIndex] || 0;
+          }
         }
       }
+
+      if (progressCallback) {
+        const progress = Math.floor((end / totalSamples) * 100);
+        if (progress !== lastProgress) {
+          progressCallback(progress);
+          lastProgress = progress;
+        }
+      }
+
+      // 每 1 秒音频让出一次控制权，减少长音频处理时的调度开销。
+      await new Promise(resolve => setTimeout(resolve, 0));
     }
-    
-    // 确保最终进度为 100%
-    if (progressCallback) {
+
+    if (progressCallback && lastProgress !== 100) {
       progressCallback(100);
     }
-    
+
     return newBuffer;
   }
-  
+
   /**
    * 计算需要重复的次数
    * @param {number} sourceDuration - 源音频时长（秒）
@@ -78,10 +102,10 @@ export class AudioRepeater {
     if (sourceDuration <= 0) {
       throw new Error('源音频时长必须大于 0');
     }
-    
+
     return Math.ceil(targetDuration / sourceDuration);
   }
-  
+
   /**
    * 预估处理时间（毫秒）
    * @param {number} targetDuration - 目标时长（秒）
@@ -91,11 +115,11 @@ export class AudioRepeater {
   static estimateProcessingTime(targetDuration, channels = 2) {
     // 基于实测：处理速度约为 0.1ms/秒/声道
     const baseTime = targetDuration * channels * 0.1;
-    
+
     // 添加 20% 的缓冲时间
     return Math.ceil(baseTime * 1.2);
   }
-  
+
   /**
    * 验证音频缓冲区是否有效
    * @param {AudioBuffer} buffer - 音频缓冲区
@@ -107,10 +131,10 @@ export class AudioRepeater {
     if (buffer.duration <= 0) return false;
     if (buffer.numberOfChannels <= 0) return false;
     if (buffer.length <= 0) return false;
-    
+
     return true;
   }
-  
+
   /**
    * 获取音频缓冲区信息
    * @param {AudioBuffer} buffer - 音频缓冲区
@@ -120,7 +144,7 @@ export class AudioRepeater {
     if (!this.isValidAudioBuffer(buffer)) {
       throw new Error('无效的音频缓冲区');
     }
-    
+
     return {
       duration: buffer.duration,
       sampleRate: buffer.sampleRate,
@@ -130,7 +154,7 @@ export class AudioRepeater {
       sizeInMB: (buffer.length * buffer.numberOfChannels * 4 / 1024 / 1024).toFixed(2)
     };
   }
-  
+
   /**
    * 裁剪音频缓冲区到指定时长
    * @param {AudioBuffer} sourceBuffer - 源音频缓冲区
@@ -142,32 +166,32 @@ export class AudioRepeater {
     if (!this.isValidAudioBuffer(sourceBuffer)) {
       throw new Error('无效的音频缓冲区');
     }
-    
+
     if (duration >= sourceBuffer.duration) {
       return sourceBuffer; // 不需要裁剪
     }
-    
+
     const sampleRate = sourceBuffer.sampleRate;
     const channels = sourceBuffer.numberOfChannels;
     const targetSamples = Math.floor(duration * sampleRate);
-    
+
     // 创建新的音频缓冲区
     const newBuffer = audioContext.createBuffer(
       channels,
       targetSamples,
       sampleRate
     );
-    
+
     // 复制数据
     for (let channel = 0; channel < channels; channel++) {
       const sourceData = sourceBuffer.getChannelData(channel);
       const targetData = newBuffer.getChannelData(channel);
       targetData.set(sourceData.subarray(0, targetSamples));
     }
-    
+
     return newBuffer;
   }
-  
+
   /**
    * 连接多个音频缓冲区
    * @param {AudioBuffer[]} buffers - 音频缓冲区数组
@@ -178,16 +202,16 @@ export class AudioRepeater {
     if (!buffers || buffers.length === 0) {
       throw new Error('缓冲区数组不能为空');
     }
-    
+
     if (buffers.length === 1) {
       return buffers[0];
     }
-    
+
     // 验证所有缓冲区具有相同的采样率和声道数
     const firstBuffer = buffers[0];
     const sampleRate = firstBuffer.sampleRate;
     const channels = firstBuffer.numberOfChannels;
-    
+
     for (const buffer of buffers) {
       if (buffer.sampleRate !== sampleRate) {
         throw new Error('所有音频缓冲区必须具有相同的采样率');
@@ -196,29 +220,30 @@ export class AudioRepeater {
         throw new Error('所有音频缓冲区必须具有相同的声道数');
       }
     }
-    
+
     // 计算总长度
     const totalLength = buffers.reduce((sum, buffer) => sum + buffer.length, 0);
-    
+
     // 创建新的音频缓冲区
     const newBuffer = audioContext.createBuffer(
       channels,
       totalLength,
       sampleRate
     );
-    
+
     // 复制数据
     for (let channel = 0; channel < channels; channel++) {
       const targetData = newBuffer.getChannelData(channel);
       let offset = 0;
-      
+
       for (const buffer of buffers) {
         const sourceData = buffer.getChannelData(channel);
         targetData.set(sourceData, offset);
         offset += buffer.length;
       }
     }
-    
+
     return newBuffer;
   }
 }
+

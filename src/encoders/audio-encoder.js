@@ -11,24 +11,29 @@ export class AudioEncoder {
   static OUTPUT_FORMATS = {
     WAV: 'wav'
   };
-  
+
   /**
    * 格式配置信息
    */
   static FORMAT_CONFIG = {
     wav: {
       name: 'WAV',
-      description: 'WAV 无损音频',
+      description: 'WAV（低码率）',
       extension: '.wav',
       mimeType: 'audio/wav',
-      quality: '无损',
+      quality: '低',
       speed: '极快（<100ms）',
-      sizeMultiplier: 10.8, // 每秒约 10.8MB（44.1kHz 立体声）
+      // 语音优先：8kHz / 单声道 / 8-bit PCM，体积约 0.46 MB/min
       recommended: true,
-      encoder: WavEncoder
+      encoder: WavEncoder,
+      defaultOptions: {
+        targetSampleRate: 8000,
+        channels: 1,
+        bitDepth: 8
+      }
     }
   };
-  
+
   /**
    * 编码音频
    * @param {AudioBuffer} audioBuffer - 音频缓冲区
@@ -41,19 +46,20 @@ export class AudioEncoder {
     if (!this.isValidFormat(format)) {
       throw new Error(`不支持的格式: ${format}。支持的格式: ${this.getAvailableFormats().join(', ')}`);
     }
-    
+
     // 获取对应的编码器
     const config = this.FORMAT_CONFIG[format.toLowerCase()];
     const encoder = config.encoder;
-    
+    const mergedOptions = { ...(config.defaultOptions || {}), ...options };
+
     // 执行编码
     try {
-      return await encoder.encode(audioBuffer, options);
+      return await encoder.encode(audioBuffer, mergedOptions);
     } catch (error) {
       throw new Error(`${format.toUpperCase()} 编码失败: ${error.message}`);
     }
   }
-  
+
   /**
    * 验证格式是否有效
    * @param {string} format - 格式名称
@@ -63,7 +69,7 @@ export class AudioEncoder {
     if (!format) return false;
     return format.toLowerCase() in this.FORMAT_CONFIG;
   }
-  
+
   /**
    * 获取所有可用格式
    * @returns {string[]} 格式列表
@@ -71,7 +77,7 @@ export class AudioEncoder {
   static getAvailableFormats() {
     return Object.keys(this.FORMAT_CONFIG);
   }
-  
+
   /**
    * 获取格式信息
    * @param {string} format - 格式名称
@@ -81,7 +87,17 @@ export class AudioEncoder {
     if (!format) return null;
     return this.FORMAT_CONFIG[format.toLowerCase()] || null;
   }
-  
+
+  /**
+   * 获取处理阶段应使用的音频参数
+   * @param {string} format - 输出格式
+   * @returns {object} 重采样与声道处理参数
+   */
+  static getProcessingOptions(format = 'wav') {
+    const config = this.getFormatInfo(format);
+    return config ? { ...(config.defaultOptions || {}) } : {};
+  }
+
   /**
    * 预估编码后的文件大小
    * @param {number} duration - 音频时长（秒）
@@ -93,10 +109,17 @@ export class AudioEncoder {
     if (!config) {
       throw new Error(`未知格式: ${format}`);
     }
-    
-    const bytes = Math.ceil(duration * config.sizeMultiplier * 1024 * 1024);
+
+    const options = config.defaultOptions || {};
+    const sampleRate = options.targetSampleRate || 8000;
+    const channels = options.channels || 1;
+    const bitDepth = options.bitDepth || 8;
+    const bytesPerSample = bitDepth / 8;
+    const bytes = Math.ceil(
+      duration * sampleRate * channels * bytesPerSample + 44
+    );
     const mb = bytes / 1024 / 1024;
-    
+
     let formatted;
     if (mb >= 1) {
       formatted = `${mb.toFixed(2)} MB`;
@@ -104,10 +127,10 @@ export class AudioEncoder {
       const kb = bytes / 1024;
       formatted = `${kb.toFixed(2)} KB`;
     }
-    
+
     return { bytes, mb, formatted };
   }
-  
+
   /**
    * 预估编码时间
    * @param {number} duration - 音频时长（秒）
@@ -119,11 +142,11 @@ export class AudioEncoder {
     if (!config) {
       throw new Error(`未知格式: ${format}`);
     }
-    
+
     // WAV 编码极快，基本恒定时间
     const milliseconds = parseFloat(WavEncoder.estimateEncodeTime(duration));
     const seconds = milliseconds / 1000;
-    
+
     let formatted;
     if (seconds < 1) {
       formatted = `${Math.round(milliseconds)} 毫秒`;
@@ -134,10 +157,10 @@ export class AudioEncoder {
       const remainingSeconds = Math.floor(seconds % 60);
       formatted = `${minutes} 分 ${remainingSeconds} 秒`;
     }
-    
+
     return { milliseconds, seconds, formatted };
   }
-  
+
   /**
    * 获取格式推荐（基于音频时长）
    * @param {number} duration - 音频时长（秒）
@@ -150,7 +173,7 @@ export class AudioEncoder {
       reason: `WAV 格式编码速度极快（<100ms），文件大小约 ${wavSize.formatted}`
     };
   }
-  
+
   /**
    * 比较不同格式的输出
    * @param {number} duration - 音频时长（秒）
@@ -159,12 +182,12 @@ export class AudioEncoder {
   static compareFormats(duration) {
     const formats = this.getAvailableFormats();
     const comparison = {};
-    
+
     for (const format of formats) {
       const config = this.getFormatInfo(format);
       const size = this.estimateFileSize(duration, format);
       const time = this.estimateEncodeTime(duration, format);
-      
+
       comparison[format] = {
         name: config.name,
         description: config.description,
@@ -177,10 +200,10 @@ export class AudioEncoder {
         recommended: config.recommended
       };
     }
-    
+
     return comparison;
   }
-  
+
   /**
    * 获取格式的文件扩展名
    * @param {string} format - 格式名称
@@ -190,7 +213,7 @@ export class AudioEncoder {
     const config = this.getFormatInfo(format);
     return config ? config.extension : '.bin';
   }
-  
+
   /**
    * 获取格式的 MIME 类型
    * @param {string} format - 格式名称
@@ -200,7 +223,7 @@ export class AudioEncoder {
     const config = this.getFormatInfo(format);
     return config ? config.mimeType : 'application/octet-stream';
   }
-  
+
   /**
    * 创建下载 Blob
    * @param {AudioBuffer} audioBuffer - 音频缓冲区
@@ -214,14 +237,14 @@ export class AudioEncoder {
     const extension = this.getFileExtension(format);
     const mimeType = this.getMimeType(format);
     const fullFilename = filename.endsWith(extension) ? filename : filename + extension;
-    
+
     return {
       blob,
       filename: fullFilename,
       mimeType
     };
   }
-  
+
   /**
    * 验证编码配置
    * @param {object} config - 编码配置
@@ -229,26 +252,26 @@ export class AudioEncoder {
    */
   static validateConfig(config) {
     const errors = [];
-    
+
     if (!config) {
       errors.push('配置对象不能为空');
       return { valid: false, errors };
     }
-    
+
     // 验证格式
     if (!config.format) {
       errors.push('必须指定输出格式');
     } else if (!this.isValidFormat(config.format)) {
       errors.push(`不支持的格式: ${config.format}`);
     }
-    
+
     // 验证音频缓冲区
     if (!config.audioBuffer) {
       errors.push('必须提供音频缓冲区');
     } else if (!(config.audioBuffer instanceof AudioBuffer)) {
       errors.push('audioBuffer 必须是 AudioBuffer 实例');
     }
-    
+
     return {
       valid: errors.length === 0,
       errors

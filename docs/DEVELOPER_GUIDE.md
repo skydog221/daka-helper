@@ -20,7 +20,7 @@
 ### 核心功能
 - 音频文件重复拼接到指定时长
 - 随机延长功能（0 到指定秒数之间随机）
-- 支持 WAV 和 MP3 两种输出格式
+- 支持语音优先的 WAV 输出格式（8kHz / 单声道 / 8-bit PCM）
 - 支持多种输入格式（MP3、WAV、FLAC、M4A、OGG 等）
 
 ## 2. 架构设计
@@ -35,7 +35,7 @@ graph TB
         UI --> |JS| app.js
         UI --> |CSS| styles.css
     end
-    
+
     subgraph "核心模块层（平台无关）"
         CORE[src/core/]
         CORE --> AR[audio-repeater.js]
@@ -44,27 +44,27 @@ graph TB
         CORE --> FD[format-detector.js]
         CORE --> CO[constants.js]
     end
-    
+
     subgraph "编码器层"
         ENC[src/encoders/]
         ENC --> AE[audio-encoder.js]
         AE --> WE[wav-encoder.js]
         AE --> ME[mp3-encoder.js]
     end
-    
+
     subgraph "平台适配层"
         ADP[src/adapters/]
         ADP --> PD[platform-detector.js]
         ADP --> FH[file-handler.js]
         ADP --> CS[config-storage.js]
     end
-    
+
     subgraph "Electron 专用"
         EL[Electron]
         EL --> main.js
         EL --> preload.js
     end
-    
+
     UI --> CORE
     UI --> ENC
     UI --> ADP
@@ -120,12 +120,13 @@ const resultBuffer = await AudioRepeater.repeatAudio(
   audioContext,      // AudioContext - Web Audio 上下文
   (progress) => {    // 进度回调
     console.log(`进度: ${progress}%`);
-  }
+  },
+  { sampleRate: 8000, channels: 1 }
 );
 ```
 
 **主要方法**：
-- `repeatAudio(sourceBuffer, targetDuration, audioContext, progressCallback)` - 将音频重复到目标时长
+- `repeatAudio(sourceBuffer, targetDuration, audioContext, progressCallback, options)` - 将音频重复到目标时长，并可在处理阶段直接重采样/混音
 
 ### 3.2 time-calculator.js
 
@@ -385,7 +386,7 @@ window.electronAPI.openOutputFolder(filePath);
  * @param {Function} progressCallback - 进度回调函数
  * @returns {Promise<AudioBuffer>} 处理后的音频缓冲区
  */
-static async repeatAudio(sourceBuffer, targetDuration, audioContext, progressCallback) {
+static async repeatAudio(sourceBuffer, targetDuration, audioContext, progressCallback, options = {}) {
   // ...
 }
 ```
@@ -410,7 +411,7 @@ try {
 - [ ] Electron 版本在 Windows/macOS 中正常工作
 - [ ] 各种输入格式（MP3/WAV/FLAC/M4A/OGG）正确解码
 - [ ] WAV 输出音质正常
-- [ ] MP3 输出音质正常，文件可在各播放器播放
+- [ ] 8kHz / 单声道 / 8-bit WAV 输出语音清晰，文件可在各播放器播放
 - [ ] 随机延长功能在 0 到指定秒数范围内正常工作
 - [ ] 配置保存和恢复正常
 - [ ] 文件拖拽上传正常
