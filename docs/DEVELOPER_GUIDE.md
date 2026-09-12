@@ -243,43 +243,36 @@ const allConfig = configStorage.getAll();
 
 ### 5.1 audio-encoder.js
 
-编码器统一接口。
+编码器统一接口（当前输出格式为轻量 WAV）。
 
 ```javascript
 import { AudioEncoder } from '../encoders/audio-encoder.js';
 
-// 编码为 WAV
-const wavBlob = await AudioEncoder.encode(audioBuffer, 'wav');
-
-// 编码为 MP3 (192kbps)
-const mp3Blob = await AudioEncoder.encode(audioBuffer, 'mp3', {
-  bitRate: 192
+// 处理后的 AudioBuffer 已是 8kHz / 单声道 / 8-bit PCM 参数，编码为 WAV
+const wavBlob = await AudioEncoder.encode(audioBuffer, 'wav', {
+  targetSampleRate: 8000,
+  channels: 1,
+  bitDepth: 8
 });
 ```
 
 ### 5.2 wav-encoder.js
 
-WAV 格式编码器（无损）。
+WAV 格式编码器（8kHz / 单声道 / 8-bit PCM，面向语音体积与速度优化）。当输入缓冲区已经符合目标参数时，会走直接字节写入快路径，避免重复重采样和逐采样 DataView 调用。
 
 ```javascript
 import { WavEncoder } from '../encoders/wav-encoder.js';
 
-const wavBlob = await WavEncoder.encode(audioBuffer);
-```
-
-### 5.3 mp3-encoder.js
-
-MP3 格式编码器，基于 lamejs 库。
-
-```javascript
-import { Mp3Encoder } from '../encoders/mp3-encoder.js';
-
-const mp3Blob = await Mp3Encoder.encode(audioBuffer, {
-  bitRate: 192  // 可选，默认 192kbps
+const wavBlob = await WavEncoder.encode(audioBuffer, {
+  targetSampleRate: 8000,
+  channels: 1,
+  bitDepth: 8
 });
 ```
 
-**注意**：lamejs 库通过 CDN 加载（`index.html` 中的 `<script>` 标签）。
+### 5.3 输出格式说明
+
+当前版本不提供 MP3 输出。输入音频会先由浏览器解码，再统一导出为轻量 WAV。
 
 ## 6. 构建系统
 

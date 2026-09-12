@@ -58,6 +58,27 @@ export class WavEncoder {
       sourceChannels.push(audioBuffer.getChannelData(i));
     }
 
+    // 主路径已经在 AudioRepeater 中完成了重采样、混音和单声道处理。
+    // 对 8kHz/单声道/8-bit 音频直接写入字节数组，避免每个采样调用 DataView 方法。
+    if (
+      outputSampleRate === sourceSampleRate
+      && outputChannels === 1
+      && outputBitDepth === 8
+      && numberOfChannels === 1
+    ) {
+      const pcmData = new Uint8Array(buffer, 44);
+      const sourceData = sourceChannels[0];
+      for (let i = 0; i < outputLength; i += 1) {
+        const sample = sourceData[i];
+        pcmData[i] = sample <= -1
+          ? 1
+          : sample >= 1
+            ? 255
+            : ((sample * 127 + 128.5) | 0);
+      }
+      return new Blob([buffer], { type: 'audio/wav' });
+    }
+
     // 写入 PCM 音频数据（重采样 + 单声道）
     let offset = 44;
     for (let i = 0; i < outputLength; i++) {
@@ -130,10 +151,10 @@ export class WavEncoder {
    * @returns {number} 预估编码时间（毫秒）
    */
   static estimateEncodeTime(duration) {
-    // WAV 编码速度极快，主要是内存复制开销
-    // 基础开销 50ms + 每秒音频约 10ms
-    const baseOverhead = 50;
-    const perSecond = 10;
+    // 主路径使用直接字节写入，编码时间主要是遍历 PCM 数据。
+    // 预估值用于 UI 提示，保留少量固定开销与长音频余量。
+    const baseOverhead = 5;
+    const perSecond = 0.05;
     return baseOverhead + (duration * perSecond);
   }
 }
