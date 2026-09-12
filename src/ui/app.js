@@ -159,7 +159,7 @@ function drawWaveform(ctx, width, height, data) {
   
   // 设置样式
   ctx.lineWidth = 2;
-  ctx.strokeStyle = '#667eea';
+  ctx.strokeStyle = '#28684f';
   ctx.fillStyle = 'rgba(102, 126, 234, 0.2)';
   ctx.beginPath();
   

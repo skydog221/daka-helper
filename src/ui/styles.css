@@ -6,8 +6,8 @@
   --line: #dfe5ec;
   --surface: #ffffff;
   --surface-soft: #f6f8fb;
-  --accent: #3f67c8;
-  --accent-soft: #edf2ff;
+  --accent: #28684f;
+  --accent-soft: #edf6f2;
   --success: #18794e;
   --danger: #b42318;
   --shadow: 0 18px 50px rgba(25, 42, 70, 0.14);
@@ -149,7 +149,7 @@ body {
 #recording-state {
   font-weight: 600;
   font-size: 1.1rem;
-  color: #667eea;
+  color: var(--accent);
 }
 
 #recording-duration {
@@ -224,7 +224,7 @@ body {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #28684f;
   color: white;
 }
 
@@ -233,7 +233,7 @@ body {
 }
 
 .btn-secondary {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  background: #8a6508;
   color: white;
 }
 
@@ -242,7 +242,7 @@ body {
 }
 
 .btn-danger {
-  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+  background: #b42318;
   color: white;
 }
 
@@ -254,7 +254,7 @@ body {
   background: white;
   padding: 15px 20px;
   border-radius: 10px;
-  border-left: 4px solid #667eea;
+  border-left: 4px solid var(--accent);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   animation: fadeIn 0.5s ease;
 }
@@ -452,7 +452,7 @@ body {
 .time-separator {
   font-size: 1.5rem;
   font-weight: 600;
-  color: #667eea;
+  color: var(--accent);
   margin: 0 5px;
   padding-top: 20px;
 }
@@ -770,10 +770,372 @@ button:focus-visible,
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #667eea;
+  background: var(--accent);
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #5a6fd8;
+  background: #1f5943;
+}
+
+/* 一屏工作台布局：桌面端将来源、参数和操作并排呈现 */
+@media (min-width: 769px) {
+  html, body {
+    overflow: hidden;
+  }
+
+  .container {
+    width: min(1180px, 100%);
+    height: 100dvh;
+    min-height: 0;
+    padding: 14px 18px 10px;
+  }
+
+  .header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "title mode"
+      "subtitle mode";
+    align-items: center;
+    column-gap: 24px;
+    text-align: left;
+    margin-bottom: 10px;
+  }
+
+  .header h1 {
+    grid-area: title;
+    font-size: clamp(1.7rem, 3vw, 2.25rem);
+    margin: 0;
+  }
+
+  .subtitle {
+    grid-area: subtitle;
+    font-size: 0.92rem;
+    margin: 2px 0 0;
+  }
+
+  .mode-switcher {
+    grid-area: mode;
+    width: 300px;
+    margin: 0;
+  }
+
+  .mode-btn {
+    padding: 8px 12px;
+    font-size: 0.88rem;
+  }
+
+  .main-content {
+    min-height: 0;
+    padding: 14px;
+    margin-bottom: 8px;
+    overflow: hidden;
+  }
+
+  .workspace-grid {
+    height: 100%;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+    gap: 14px;
+  }
+
+  .source-column,
+  .control-column {
+    min-width: 0;
+    min-height: 0;
+    display: grid;
+    gap: 14px;
+  }
+
+  .source-column {
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .control-column {
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .recording-section,
+  .file-section,
+  .settings-section,
+  .process-section {
+    min-height: 0;
+    margin: 0;
+    overflow: auto;
+  }
+
+  .recording-section,
+  .settings-section {
+    padding: 14px;
+    background: var(--surface-soft);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+
+  .recording-section h2,
+  .settings-section h2 {
+    margin-bottom: 10px;
+    padding-bottom: 7px;
+    font-size: 1.08rem;
+  }
+
+  #recording-status {
+    margin-bottom: 10px;
+    padding: 9px 11px;
+    border-width: 1px;
+  }
+
+  #recording-state {
+    font-size: 0.95rem;
+  }
+
+  #recording-duration {
+    font-size: 1.05rem;
+    padding: 3px 9px;
+  }
+
+  #waveform-visualizer {
+    margin-bottom: 10px;
+    padding: 8px;
+    border-width: 1px;
+  }
+
+  #waveform-canvas {
+    height: 68px;
+  }
+
+  #recording-controls {
+    gap: 7px;
+    margin-bottom: 10px;
+  }
+
+  .btn {
+    min-width: 0;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 0.88rem;
+  }
+
+  .file-section {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .file-upload-area {
+    padding: 20px 14px;
+    min-height: 0;
+  }
+
+  .upload-icon {
+    font-size: 2.2rem;
+    margin-bottom: 6px;
+  }
+
+  .upload-text {
+    margin-bottom: 4px;
+    font-size: 1rem;
+  }
+
+  .upload-hint {
+    margin-bottom: 12px;
+    font-size: 0.78rem;
+  }
+
+  .select-file-btn,
+  .change-file-btn {
+    padding: 8px 14px;
+    font-size: 0.86rem;
+  }
+
+  .file-info {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .file-details h3 {
+    margin-bottom: 5px;
+    font-size: 0.98rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .file-meta {
+    gap: 5px;
+    font-size: 0.75rem;
+  }
+
+  .file-meta span {
+    padding: 3px 7px;
+  }
+
+  .setting-group {
+    margin-bottom: 12px;
+  }
+
+  .setting-group label {
+    margin-bottom: 5px;
+    font-size: 0.86rem;
+  }
+
+  .duration-presets {
+    gap: 6px;
+    margin: -1px 0 9px;
+  }
+
+  .preset-btn {
+    padding: 5px 9px;
+    font-size: 0.78rem;
+  }
+
+  .time-input-group {
+    gap: 7px;
+  }
+
+  .time-label,
+  .range-hint {
+    font-size: 0.74rem;
+  }
+
+  .time-input-field input,
+  input[type="number"],
+  select {
+    padding: 8px 10px;
+    font-size: 0.9rem;
+  }
+
+  .time-input-field input {
+    width: 72px;
+  }
+
+  .time-separator {
+    padding-top: 15px;
+    font-size: 1.25rem;
+  }
+
+  .checkbox-group {
+    gap: 7px;
+    margin-bottom: 8px;
+  }
+
+  .random-range-group {
+    margin-left: 22px;
+    padding: 9px 10px;
+  }
+
+  .process-section {
+    justify-content: center;
+    padding: 18px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface-soft);
+  }
+
+  .process-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 12px 18px;
+    margin-bottom: 8px;
+  }
+
+  .process-hint {
+    margin: 0 auto 12px;
+    font-size: 0.8rem;
+  }
+
+  .progress-container,
+  .result-container,
+  .error-container {
+    width: 100%;
+    max-width: none;
+    margin-bottom: 0;
+  }
+
+  .result-success,
+  .error-message {
+    padding: 16px;
+  }
+
+  .success-icon,
+  .error-icon {
+    margin-bottom: 6px;
+    font-size: 2rem;
+  }
+
+  .result-success h3,
+  .error-message h3 {
+    margin-bottom: 5px;
+    font-size: 1rem;
+  }
+
+  .result-success p,
+  .error-message p {
+    margin-bottom: 10px;
+    font-size: 0.82rem;
+  }
+
+  .result-btn,
+  .error-btn {
+    padding: 8px 12px;
+    font-size: 0.82rem;
+  }
+
+  .footer {
+    font-size: 0.72rem;
+  }
+}
+
+@media (min-width: 769px) and (max-height: 720px) {
+  .container {
+    padding-top: 9px;
+    padding-bottom: 6px;
+  }
+
+  .header {
+    margin-bottom: 6px;
+  }
+
+  .main-content {
+    padding: 10px;
+  }
+
+  .workspace-grid,
+  .source-column,
+  .control-column {
+    gap: 10px;
+  }
+
+  .recording-section,
+  .settings-section,
+  .process-section {
+    padding: 10px;
+  }
+
+  #waveform-canvas {
+    height: 50px;
+  }
+}
+
+@media (max-width: 768px) {
+  .workspace-grid {
+    display: contents;
+  }
+
+  .source-column,
+  .control-column {
+    display: contents;
+  }
+
+  body {
+    overflow-x: hidden;
+  }
+}
+
+@media (min-width: 769px) {
+  .source-column:has(.recording-section.hidden) {
+    grid-template-rows: 1fr;
+  }
 }
