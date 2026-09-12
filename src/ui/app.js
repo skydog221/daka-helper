@@ -2,6 +2,18 @@
  * 统一的 UI 控制逻辑
  * 使用核心模块和平台适配器
  */
+console.log('[App] 开始加载 app.js');
+
+// 添加错误处理以捕获模块加载错误
+window.addEventListener('error', (e) => {
+  console.error('[App] 未捕获的错误:', e.error);
+});
+
+window.addEventListener('unhandledrejection', (e) => {
+  console.error('[App] 未处理的 Promise 拒绝:', e.reason);
+});
+
+console.log('[App] 开始导入模块...');
 
 // 导入核心模块
 import { TimeCalculator } from '../core/time-calculator.js';
@@ -59,6 +71,7 @@ const elements = {
   outputFormat: document.getElementById('outputFormat'),
 
   processBtn: document.getElementById('processBtn'),
+  processHint: document.getElementById('processHint'),
   progressContainer: document.getElementById('progressContainer'),
   progressStage: document.getElementById('progressStage'),
   progressPercent: document.getElementById('progressPercent'),
@@ -250,6 +263,15 @@ function setupEventListeners() {
   // 文件选择
   elements.selectFileBtn.addEventListener('click', selectFile);
   elements.changeFileBtn.addEventListener('click', selectFile);
+  elements.fileUploadArea.addEventListener('click', (event) => {
+    if (!event.target.closest('button')) selectFile();
+  });
+  elements.fileUploadArea.addEventListener('keydown', (event) => {
+    if ((event.key === 'Enter' || event.key === ' ') && !event.target.closest('button')) {
+      event.preventDefault();
+      selectFile();
+    }
+  });
   
   // 拖拽上传
   elements.fileUploadArea.addEventListener('dragover', handleDragOver);
@@ -263,6 +285,29 @@ function setupEventListeners() {
   // 时间输入验证
   elements.targetMinutes.addEventListener('input', validateAndUpdateUI);
   elements.targetSeconds.addEventListener('input', validateAndUpdateUI);
+  elements.targetMinutes.addEventListener('blur', normalizeDurationInputs);
+  elements.targetSeconds.addEventListener('blur', normalizeDurationInputs);
+
+  document.querySelectorAll('.preset-btn').forEach((button) => {
+    button.addEventListener('click', () => {
+      elements.targetMinutes.value = button.dataset.minutes;
+      elements.targetSeconds.value = '0';
+      document.querySelectorAll('.preset-btn').forEach((item) => item.classList.remove('is-selected'));
+      button.classList.add('is-selected');
+      validateAndUpdateUI();
+    });
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'o') {
+      event.preventDefault();
+      selectFile();
+    }
+    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && !elements.processBtn.disabled) {
+      event.preventDefault();
+      processAudio();
+    }
+  });
 
   // 处理按钮
   elements.processBtn.addEventListener('click', processAudio);
@@ -406,8 +451,7 @@ async function loadAudioFile(file) {
  */
 function handleDragOver(event) {
   event.preventDefault();
-  elements.fileUploadArea.style.borderColor = '#667eea';
-  elements.fileUploadArea.style.background = '#f0f4ff';
+  elements.fileUploadArea.classList.add('is-dragging');
 }
 
 /**
@@ -415,8 +459,7 @@ function handleDragOver(event) {
  */
 function handleDragLeave(event) {
   event.preventDefault();
-  elements.fileUploadArea.style.borderColor = '#ddd';
-  elements.fileUploadArea.style.background = '#fafafa';
+  elements.fileUploadArea.classList.remove('is-dragging');
 }
 
 /**
@@ -424,8 +467,7 @@ function handleDragLeave(event) {
  */
 async function handleDrop(event) {
   event.preventDefault();
-  elements.fileUploadArea.style.borderColor = '#ddd';
-  elements.fileUploadArea.style.background = '#fafafa';
+  elements.fileUploadArea.classList.remove('is-dragging');
 
   const files = event.dataTransfer.files;
   if (files.length > 0) {
@@ -458,7 +500,20 @@ function updateRandomRangeHint() {
  * 验证输入并更新UI
  */
 function validateAndUpdateUI() {
+  const minutes = parseInt(elements.targetMinutes.value, 10) || 0;
+  const seconds = parseInt(elements.targetSeconds.value, 10) || 0;
+  document.querySelectorAll('.preset-btn').forEach((button) => {
+    button.classList.toggle('is-selected', seconds === 0 && minutes === Number(button.dataset.minutes));
+  });
   updateUI();
+}
+
+function normalizeDurationInputs() {
+  const minutes = Math.max(0, Math.min(999, parseInt(elements.targetMinutes.value, 10) || 0));
+  const seconds = Math.max(0, Math.min(59, parseInt(elements.targetSeconds.value, 10) || 0));
+  elements.targetMinutes.value = String(minutes);
+  elements.targetSeconds.value = String(seconds);
+  validateAndUpdateUI();
 }
 
 /**
@@ -517,14 +572,12 @@ async function processAudio() {
     const outputFormat = elements.outputFormat.value;
     showProgress(`正在编码为 ${outputFormat.toUpperCase()}...`, 70);
 
-    const audioBlob = await AudioEncoder.encode(repeatedBuffer, outputFormat, (progress) => {
-      showProgress(`正在编码为 ${outputFormat.toUpperCase()}...`, 70 + progress * 0.25);
-    });
+    const audioBlob = await AudioEncoder.encode(repeatedBuffer, outputFormat);
 
     // 保存文件
     showProgress('正在保存文件...', 95);
     const fileName = generateOutputFileName(appState.audioInfo.name, finalDuration, outputFormat);
-    const mimeType = outputFormat === 'mp3' ? 'audio/mpeg' : 'audio/wav';
+    const mimeType = 'audio/wav';
     
     await fileHandler.saveAudioFile(audioBlob, fileName, mimeType);
 
@@ -649,6 +702,15 @@ function updateUI() {
   
   const canProcess = appState.audioBuffer && validation.valid && !appState.isProcessing;
   elements.processBtn.disabled = !canProcess;
+  if (appState.isProcessing) {
+    elements.processHint.textContent = '正在处理，请稍候…';
+  } else if (!appState.audioBuffer) {
+    elements.processHint.textContent = '先选择音频文件，再开始处理';
+  } else if (!validation.valid) {
+    elements.processHint.textContent = validation.message || '请检查目标时长';
+  } else {
+    elements.processHint.textContent = '准备就绪 · 快捷键 Ctrl/⌘ + Enter 可开始';
+  }
 }
 
 /**
@@ -704,6 +766,8 @@ async function handleStartRecording() {
   try {
     console.log('[App] 正在调用 AudioRecorder.startRecording...');
     await AudioRecorder.startRecording({
+      mimeType: 'audio/webm;codecs=opus',
+      audioBitsPerSecond: 16000,
       onProgress: updateRecordingDuration,
       onError: handleRecordingError
     });
