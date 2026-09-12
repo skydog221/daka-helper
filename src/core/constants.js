@@ -15,12 +15,12 @@ export const AUDIO_FORMATS = {
 export const OUTPUT_FORMATS = {
   [AUDIO_FORMATS.WAV]: {
     name: 'WAV',
-    label: 'WAV（无损，瞬间完成）',
+    label: 'WAV（低码率，体积小）',
     mime: 'audio/wav',
     extension: '.wav',
-    bitDepth: 16,
+    bitDepth: 8,
     recommended: true, // 默认推荐
-    description: '无损格式，文件较大，编码速度极快（<100ms）'
+    description: '低码率格式，文件更小，编码速度极快（<100ms）'
   }
 };
 
@@ -105,7 +105,7 @@ export const UI_TEXT = {
   HINT_SELECT_FILE: '支持 MP3, WAV, FLAC, M4A, OGG 格式',
   HINT_DURATION: '输入目标时长（分钟和秒）',
   HINT_EXTEND: '延长时长可避免被识别为机器打卡',
-  HINT_FORMAT: 'WAV 格式速度极快（瞬间完成）',
+  HINT_FORMAT: 'WAV 低码率，体积更小（瞬间完成）',
   
   // 错误信息
   ERROR_NO_FILE: '请先选择音频文件',

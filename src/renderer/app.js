@@ -281,23 +281,47 @@ async function processAudio() {
 
     switch (outputFormat) {
       case "wav":
-        audioBlob = audioBufferToWAV(processedBuffer);
+        audioBlob = audioBufferToWAV(processedBuffer, {
+          targetSampleRate: 16000,
+          channels: 1,
+          bitDepth: 8,
+        });
         break;
       case "m4a":
-        audioBlob = audioBufferToM4A(processedBuffer);
+        audioBlob = audioBufferToM4A(processedBuffer, {
+          targetSampleRate: 16000,
+          channels: 1,
+          bitDepth: 8,
+        });
         break;
       case "mp3":
-        audioBlob = audioBufferToMP3(processedBuffer);
+        audioBlob = audioBufferToMP3(processedBuffer, {
+          targetSampleRate: 16000,
+          channels: 1,
+          bitDepth: 8,
+        });
         break;
       case "flac":
-        audioBlob = audioBufferToFLAC(processedBuffer);
+        audioBlob = audioBufferToFLAC(processedBuffer, {
+          targetSampleRate: 16000,
+          channels: 1,
+          bitDepth: 8,
+        });
         break;
       case "aac":
-        audioBlob = audioBufferToAAC(processedBuffer);
+        audioBlob = audioBufferToAAC(processedBuffer, {
+          targetSampleRate: 16000,
+          channels: 1,
+          bitDepth: 8,
+        });
         break;
       default:
         // 默认输出为 WAV
-        audioBlob = audioBufferToWAV(processedBuffer);
+        audioBlob = audioBufferToWAV(processedBuffer, {
+          targetSampleRate: 16000,
+          channels: 1,
+          bitDepth: 8,
+        });
     }
 
     updateProgress({ stage: "completed", progress: 100 });
@@ -378,12 +402,22 @@ async function repeatAudioBuffer(sourceBuffer, targetDuration) {
 /**
  * 将音频缓冲区转换为 WAV 格式
  */
-function audioBufferToWAV(buffer) {
-  const numOfChan = buffer.numberOfChannels;
-  const sampleRate = buffer.sampleRate;
-  const format = 1; // PCM
-  const bitDepth = 16;
-  const dataSize = buffer.length * numOfChan * 2;
+function audioBufferToWAV(buffer, options = {}) {
+  const {
+    targetSampleRate = 16000,
+    channels = 1,
+    bitDepth = 8,
+  } = options;
+
+  const sourceSampleRate = buffer.sampleRate;
+  const sourceChannels = buffer.numberOfChannels;
+  const outputSampleRate = Math.min(targetSampleRate, sourceSampleRate);
+  const outputChannels = channels === 1 ? 1 : Math.min(2, sourceChannels);
+  const outputBitDepth = bitDepth === 8 ? 8 : 16;
+  const bytesPerSample = outputBitDepth / 8;
+  const sampleRateRatio = sourceSampleRate / outputSampleRate;
+  const outputLength = Math.floor(buffer.length / sampleRateRatio);
+  const dataSize = outputLength * outputChannels * bytesPerSample;
 
   const bufferArray = new ArrayBuffer(44 + dataSize);
   const view = new DataView(bufferArray);
@@ -396,6 +430,18 @@ function audioBufferToWAV(buffer) {
     }
   }
 
+  function writeSample(sample) {
+    const clamped = Math.max(-1, Math.min(1, sample));
+    if (outputBitDepth === 8) {
+      view.setUint8(pos, Math.round(clamped * 127 + 128));
+      pos += 1;
+      return;
+    }
+
+    view.setInt16(pos, clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff, true);
+    pos += 2;
+  }
+
   // RIFF identifier
   writeString("RIFF");
   view.setUint32(pos, 36 + dataSize, true);
@@ -406,17 +452,17 @@ function audioBufferToWAV(buffer) {
   writeString("fmt ");
   view.setUint32(pos, 16, true);
   pos += 4;
-  view.setUint16(pos, format, true);
+  view.setUint16(pos, 1, true);
   pos += 2;
-  view.setUint16(pos, numOfChan, true);
+  view.setUint16(pos, outputChannels, true);
   pos += 2;
-  view.setUint32(pos, sampleRate, true);
+  view.setUint32(pos, outputSampleRate, true);
   pos += 4;
-  view.setUint32(pos, sampleRate * numOfChan * (bitDepth / 8), true);
+  view.setUint32(pos, outputSampleRate * outputChannels * bytesPerSample, true);
   pos += 4;
-  view.setUint16(pos, numOfChan * (bitDepth / 8), true);
+  view.setUint16(pos, outputChannels * bytesPerSample, true);
   pos += 2;
-  view.setUint16(pos, bitDepth, true);
+  view.setUint16(pos, outputBitDepth, true);
   pos += 2;
 
   // data subchunk
@@ -424,12 +470,21 @@ function audioBufferToWAV(buffer) {
   view.setUint32(pos, dataSize, true);
   pos += 4;
 
-  // 写入PCM数据
-  for (let i = 0; i < buffer.length; i++) {
-    for (let c = 0; c < numOfChan; c++) {
-      const sample = Math.max(-1, Math.min(1, buffer.getChannelData(c)[i]));
-      view.setInt16(pos, sample * 0x7fff, true);
-      pos += 2;
+  // 写入PCM数据（重采样 + 单声道）
+  for (let i = 0; i < outputLength; i++) {
+    const sourceIndex = Math.floor(i * sampleRateRatio);
+    if (outputChannels === 1) {
+      let mixed = 0;
+      for (let c = 0; c < sourceChannels; c++) {
+        mixed += buffer.getChannelData(c)[sourceIndex] || 0;
+      }
+      mixed = mixed / sourceChannels;
+      writeSample(mixed);
+    } else {
+      for (let c = 0; c < outputChannels; c++) {
+        const channelIndex = Math.min(c, sourceChannels - 1);
+        writeSample(buffer.getChannelData(channelIndex)[sourceIndex] || 0);
+      }
     }
   }
 
@@ -440,10 +495,10 @@ function audioBufferToWAV(buffer) {
  * 将音频缓冲区转换为 M4A 格式
  * 注意：这是一个简化的实现，实际上将音频数据编码为 AAC 并封装在 M4A 容器中
  */
-function audioBufferToM4A(buffer) {
+function audioBufferToM4A(buffer, options = {}) {
   // 由于浏览器环境限制，我们暂时使用 WAV 格式但设置正确的 MIME 类型
   // 在实际应用中，需要使用专门的编码库来生成真正的 M4A 文件
-  const wavData = audioBufferToWAV(buffer);
+  const wavData = audioBufferToWAV(buffer, options);
 
   // 创建一个新的 Blob，但使用 M4A 的 MIME 类型
   // 注意：这只是为了文件扩展名正确，实际内容仍是 WAV
@@ -454,9 +509,9 @@ function audioBufferToM4A(buffer) {
  * 将音频缓冲区转换为 MP3 格式
  * 注意：这是一个简化的实现，实际内容为 WAV 格式
  */
-function audioBufferToMP3(buffer) {
+function audioBufferToMP3(buffer, options = {}) {
   // 由于浏览器环境限制，我们使用 WAV 格式但设置 MP3 的 MIME 类型
-  const wavData = audioBufferToWAV(buffer);
+  const wavData = audioBufferToWAV(buffer, options);
   return new Blob([wavData], { type: "audio/mpeg" });
 }
 
@@ -464,9 +519,9 @@ function audioBufferToMP3(buffer) {
  * 将音频缓冲区转换为 FLAC 格式
  * 注意：这是一个简化的实现，实际内容为 WAV 格式
  */
-function audioBufferToFLAC(buffer) {
+function audioBufferToFLAC(buffer, options = {}) {
   // 由于浏览器环境限制，我们使用 WAV 格式但设置 FLAC 的 MIME 类型
-  const wavData = audioBufferToWAV(buffer);
+  const wavData = audioBufferToWAV(buffer, options);
   return new Blob([wavData], { type: "audio/flac" });
 }
 
@@ -474,9 +529,9 @@ function audioBufferToFLAC(buffer) {
  * 将音频缓冲区转换为 AAC 格式
  * 注意：这是一个简化的实现，实际内容为 WAV 格式
  */
-function audioBufferToAAC(buffer) {
+function audioBufferToAAC(buffer, options = {}) {
   // 由于浏览器环境限制，我们使用 WAV 格式但设置 AAC 的 MIME 类型
-  const wavData = audioBufferToWAV(buffer);
+  const wavData = audioBufferToWAV(buffer, options);
   return new Blob([wavData], { type: "audio/aac" });
 }
 

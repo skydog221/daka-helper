@@ -1,6 +1,7 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, shell, protocol, net } = require("electron");
 const path = require("path");
 const fs = require("fs");
+const { fileURLToPath } = require("url");
 
 // 保持对窗口对象的全局引用，如果不这样做，当 JavaScript 对象被垃圾回收时，窗口会被自动关闭
 let mainWindow;
@@ -19,7 +20,7 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       enableRemoteModule: false,
-      preload: path.join(__dirname, "src/renderer/preload.js"),
+      preload: path.join(__dirname, "dist/electron/preload.js"),
     },
     icon: path.join(__dirname, "assets/icon.png"), // 应用图标
     title: "打卡剪辑助手",
@@ -27,7 +28,8 @@ function createWindow() {
   });
 
   // 加载统一的 UI 入口
-  mainWindow.loadFile("src/ui/index.html");
+  const indexPath = path.join(__dirname, "dist/electron/index.html");
+  mainWindow.loadURL(`app://${indexPath.replace(/\\/g, '/')}`);
 
   // 窗口加载完成后显示
   mainWindow.once("ready-to-show", () => {
@@ -45,8 +47,20 @@ function createWindow() {
   }
 }
 
-// Electron 会在初始化后并准备创建浏览器窗口时，调用这个函数
-app.whenReady().then(createWindow);
+// 注册自定义协议以加载asar包内的文件
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'app', privileges: { secure: true, standard: true, supportFetchAPI: true } }
+]);
+
+app.whenReady().then(() => {
+  // 注册app协议
+  protocol.handle('app', (request) => {
+    const filePath = fileURLToPath(request.url);
+    return net.fetch(`file://${filePath}`);
+  });
+  
+  createWindow();
+});
 
 // 当全部窗口关闭时退出
 app.on("window-all-closed", () => {

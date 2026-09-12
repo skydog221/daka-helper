@@ -8,15 +8,13 @@ export default defineConfig({
   
   build: {
     outDir: 'dist/electron',
-    emptyOutDir: true,
+    emptyOutDir: false, // 不清空目录，保留preload.js
     
     rollupOptions: {
-      input: {
-        main: resolve(__dirname, 'src/ui/index.html')
-      },
+      input: resolve(__dirname, 'src/ui/index.html'),
       output: {
         // 保持简单的文件名
-        entryFileNames: 'assets/[name].js',
+        entryFileNames: 'assets/main.js',
         chunkFileNames: 'assets/[name].js',
         assetFileNames: 'assets/[name].[ext]'
       }
