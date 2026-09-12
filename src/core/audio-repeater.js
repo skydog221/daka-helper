@@ -9,6 +9,7 @@ export class AudioRepeater {
    * @param {number} targetDuration - 目标时长（秒）
    * @param {AudioContext} audioContext - 音频上下文
    * @param {Function} progressCallback - 进度回调函数 (progress: 0-100)
+   * @param {object} options - 输出参数（sampleRate/targetSampleRate、channels）
    * @returns {Promise<AudioBuffer>} 处理后的音频缓冲区
    */
   static async repeatAudio(
@@ -43,16 +44,22 @@ export class AudioRepeater {
     const sourceDuration = sourceBuffer.duration;
     const totalSamples = Math.max(1, Math.floor(targetDuration * outputSampleRate));
     const sourceSamplesAtOutputRate = Math.max(1, Math.floor(sourceDuration * outputSampleRate));
+    const loopSamples = Math.min(sourceSamplesAtOutputRate, totalSamples);
     const newBuffer = audioContext.createBuffer(outputChannels, totalSamples, outputSampleRate);
     const outputData = Array.from(
       { length: outputChannels },
       (_, channel) => newBuffer.getChannelData(channel)
     );
-    const chunkSize = Math.max(1, Math.floor(outputSampleRate));
+    const sourceLoopData = Array.from(
+      { length: outputChannels },
+      () => new Float32Array(loopSamples)
+    );
+    const sourceChunkSize = Math.max(1, Math.floor(outputSampleRate));
     let lastProgress = -1;
 
-    for (let start = 0; start < totalSamples; start += chunkSize) {
-      const end = Math.min(totalSamples, start + chunkSize);
+    // 只对一个源音频循环做一次重采样和混音，后续重复使用 TypedArray 原生复制。
+    for (let start = 0; start < loopSamples; start += sourceChunkSize) {
+      const end = Math.min(loopSamples, start + sourceChunkSize);
       for (let i = start; i < end; i += 1) {
         const sourceFrameAtOutputRate = i % sourceSamplesAtOutputRate;
         const sourceIndex = Math.min(
@@ -65,23 +72,48 @@ export class AudioRepeater {
           for (const channelData of sourceChannels) {
             mixed += channelData[sourceIndex] || 0;
           }
-          outputData[0][i] = mixed / sourceChannels.length;
+          sourceLoopData[0][i] = mixed / sourceChannels.length;
         } else {
           for (let channel = 0; channel < outputChannels; channel += 1) {
-            outputData[channel][i] = sourceChannels[channel][sourceIndex] || 0;
+            sourceLoopData[channel][i] = sourceChannels[channel][sourceIndex] || 0;
           }
         }
       }
 
       if (progressCallback) {
-        const progress = Math.floor((end / totalSamples) * 100);
+        const progress = Math.floor((end / loopSamples) * 20);
         if (progress !== lastProgress) {
           progressCallback(progress);
           lastProgress = progress;
         }
       }
 
-      // 每 1 秒音频让出一次控制权，减少长音频处理时的调度开销。
+      // 每秒源音频让出一次控制权，避免重采样阶段阻塞界面。
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+
+    // 先写入一个源循环，再按倍增方式复制，避免逐周期调用 TypedArray.set。
+    for (let channel = 0; channel < outputChannels; channel += 1) {
+      outputData[channel].set(sourceLoopData[channel]);
+    }
+
+    let filledSamples = loopSamples;
+    while (filledSamples < totalSamples) {
+      const copyLength = Math.min(filledSamples, totalSamples - filledSamples);
+      for (let channel = 0; channel < outputChannels; channel += 1) {
+        outputData[channel].copyWithin(filledSamples, 0, copyLength);
+      }
+      filledSamples += copyLength;
+
+      if (progressCallback) {
+        const progress = 20 + Math.floor((filledSamples / totalSamples) * 80);
+        if (progress !== lastProgress) {
+          progressCallback(progress);
+          lastProgress = progress;
+        }
+      }
+
+      // 每次倍增复制后让出控制权，长音频仍保持可交互。
       await new Promise(resolve => setTimeout(resolve, 0));
     }
 
