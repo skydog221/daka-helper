@@ -13,7 +13,7 @@ export class WavEncoder {
    * @returns {Blob} WAV 格式的音频数据
    */
   static encode(audioBuffer, options = {}) {
-    const { targetSampleRate = 8000, channels = 1, bitDepth = 8 } = options;
+    const { targetSampleRate = 48000, channels = 1, bitDepth = 8 } = options;
 
     const sourceSampleRate = audioBuffer.sampleRate;
     const numberOfChannels = audioBuffer.numberOfChannels;
@@ -137,7 +137,7 @@ export class WavEncoder {
   static estimateSize(
     duration,
     channels = 1,
-    sampleRate = 38000,
+    sampleRate = 48000,
     bitDepth = 8,
   ) {
     const bytesPerSample = bitDepth / 8;
