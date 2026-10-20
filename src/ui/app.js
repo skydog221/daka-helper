@@ -769,7 +769,6 @@ async function handleStartRecording() {
     console.log('[App] 正在调用 AudioRecorder.startRecording...');
     await AudioRecorder.startRecording({
       mimeType: 'audio/webm;codecs=opus',
-      audioBitsPerSecond: 8000,
       onProgress: updateRecordingDuration,
       onError: handleRecordingError
     });

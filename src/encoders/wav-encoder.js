@@ -13,7 +13,7 @@ export class WavEncoder {
    * @returns {Blob} WAV 格式的音频数据
    */
   static encode(audioBuffer, options = {}) {
-    const { targetSampleRate = 48000, channels = 1, bitDepth = 8 } = options;
+    const { targetSampleRate = 16000, channels = 1, bitDepth = 16 } = options;
 
     const sourceSampleRate = audioBuffer.sampleRate;
     const numberOfChannels = audioBuffer.numberOfChannels;
@@ -59,19 +59,19 @@ export class WavEncoder {
     }
 
     // 主路径已经在 AudioRepeater 中完成了重采样、混音和单声道处理。
-    // 对 8kHz/单声道/8-bit 音频直接写入字节数组，避免每个采样调用 DataView 方法。
+    // 对 16kHz/单声道/16-bit 音频直接写入字节数组，避免每个采样调用 DataView 方法。
     if (
       outputSampleRate === sourceSampleRate &&
       outputChannels === 1 &&
-      outputBitDepth === 8 &&
+      outputBitDepth === 16 &&
       numberOfChannels === 1
     ) {
-      const pcmData = new Uint8Array(buffer, 44);
+      const pcmData = new Int16Array(buffer, 44);
       const sourceData = sourceChannels[0];
       for (let i = 0; i < outputLength; i += 1) {
         const sample = sourceData[i];
         pcmData[i] =
-          sample <= -1 ? 1 : sample >= 1 ? 255 : (sample * 127 + 128.5) | 0;
+          sample <= -1 ? -32768 : sample >= 1 ? 32767 : (sample * (sample < 0 ? 0x8000 : 0x7fff)) | 0;
       }
       return new Blob([buffer], { type: "audio/wav" });
     }
@@ -137,8 +137,8 @@ export class WavEncoder {
   static estimateSize(
     duration,
     channels = 1,
-    sampleRate = 48000,
-    bitDepth = 8,
+    sampleRate = 16000,
+    bitDepth = 16,
   ) {
     const bytesPerSample = bitDepth / 8;
     const dataSize = duration * channels * sampleRate * bytesPerSample;

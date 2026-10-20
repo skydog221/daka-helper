@@ -20,7 +20,7 @@
 ### 核心功能
 - 音频文件重复拼接到指定时长
 - 随机延长功能（0 到指定秒数之间随机）
-- 支持语音优先的 WAV 输出格式（8kHz / 单声道 / 8-bit PCM）
+- 支持标准语音音质的 WAV 输出格式（16kHz / 单声道 / 16-bit PCM）
 - 支持多种输入格式（MP3、WAV、FLAC、M4A、OGG 等）
 
 ## 2. 架构设计
@@ -121,7 +121,7 @@ const resultBuffer = await AudioRepeater.repeatAudio(
   (progress) => {    // 进度回调
     console.log(`进度: ${progress}%`);
   },
-  { sampleRate: 8000, channels: 1 }
+  { sampleRate: 16000, channels: 1 }
 );
 ```
 
@@ -248,25 +248,25 @@ const allConfig = configStorage.getAll();
 ```javascript
 import { AudioEncoder } from '../encoders/audio-encoder.js';
 
-// 处理后的 AudioBuffer 已是 8kHz / 单声道 / 8-bit PCM 参数，编码为 WAV
+// 处理后的 AudioBuffer 已是 16kHz / 单声道 / 16-bit PCM 参数，编码为 WAV
 const wavBlob = await AudioEncoder.encode(audioBuffer, 'wav', {
-  targetSampleRate: 8000,
+  targetSampleRate: 16000,
   channels: 1,
-  bitDepth: 8
+  bitDepth: 16
 });
 ```
 
 ### 5.2 wav-encoder.js
 
-WAV 格式编码器（8kHz / 单声道 / 8-bit PCM，面向语音体积与速度优化）。当输入缓冲区已经符合目标参数时，会走直接字节写入快路径，避免重复重采样和逐采样 DataView 调用。
+WAV 格式编码器（16kHz / 单声道 / 16-bit PCM，标准语音音质，面向体积与速度平衡）。当输入缓冲区已经符合目标参数时，会走直接字节写入快路径，避免重复重采样和逐采样 DataView 调用。
 
 ```javascript
 import { WavEncoder } from '../encoders/wav-encoder.js';
 
 const wavBlob = await WavEncoder.encode(audioBuffer, {
-  targetSampleRate: 8000,
+  targetSampleRate: 16000,
   channels: 1,
-  bitDepth: 8
+  bitDepth: 16
 });
 ```
 
@@ -404,7 +404,7 @@ try {
 - [ ] Electron 版本在 Windows/macOS 中正常工作
 - [ ] 各种输入格式（MP3/WAV/FLAC/M4A/OGG）正确解码
 - [ ] WAV 输出音质正常
-- [ ] 8kHz / 单声道 / 8-bit WAV 输出语音清晰，文件可在各播放器播放
+- [ ] 16kHz / 单声道 / 16-bit WAV 输出语音清晰，文件可在各播放器播放
 - [ ] 随机延长功能在 0 到指定秒数范围内正常工作
 - [ ] 配置保存和恢复正常
 - [ ] 文件拖拽上传正常

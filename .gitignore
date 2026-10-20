@@ -139,3 +139,4 @@ dist
 # tmp files
 temp/
 
+.ace-tool/

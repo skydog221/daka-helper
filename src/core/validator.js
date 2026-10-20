@@ -234,8 +234,8 @@ export class Validator {
     let estimatedSize; // MB
 
     if (format === 'wav') {
-      // 8kHz 单声道 8-bit PCM，约 0.46 MB/min（含 WAV 头部）
-      estimatedSize = (duration * 8000 + 44) / 1024 / 1024;
+      // 16kHz 单声道 16-bit PCM，约 1.83 MB/min（含 WAV 头部）
+      estimatedSize = (duration * 32000 + 44) / 1024 / 1024;
     } else {
       estimatedSize = 0;
     }

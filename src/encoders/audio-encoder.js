@@ -18,18 +18,18 @@ export class AudioEncoder {
   static FORMAT_CONFIG = {
     wav: {
       name: 'WAV',
-      description: 'WAV（低码率）',
+      description: 'WAV（标准音质）',
       extension: '.wav',
       mimeType: 'audio/wav',
-      quality: '低',
+      quality: '中',
       speed: '极快（<100ms）',
-      // 语音优先：8kHz / 单声道 / 8-bit PCM，体积约 0.46 MB/min
+      // 语音优先：16kHz / 单声道 / 16-bit PCM，体积约 1.83 MB/min
       recommended: true,
       encoder: WavEncoder,
       defaultOptions: {
-        targetSampleRate: 8000,
+        targetSampleRate: 16000,
         channels: 1,
-        bitDepth: 8
+        bitDepth: 16
       }
     }
   };
@@ -111,9 +111,9 @@ export class AudioEncoder {
     }
 
     const options = config.defaultOptions || {};
-    const sampleRate = options.targetSampleRate || 8000;
+    const sampleRate = options.targetSampleRate || 16000;
     const channels = options.channels || 1;
-    const bitDepth = options.bitDepth || 8;
+    const bitDepth = options.bitDepth || 16;
     const bytesPerSample = bitDepth / 8;
     const bytes = Math.ceil(
       duration * sampleRate * channels * bytesPerSample + 44

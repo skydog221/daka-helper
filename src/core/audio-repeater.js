@@ -31,7 +31,7 @@ export class AudioRepeater {
     const requestedSampleRate = options.sampleRate || options.targetSampleRate || sourceBuffer.sampleRate;
     const outputSampleRate = Math.min(
       sourceBuffer.sampleRate,
-      Math.max(8000, requestedSampleRate)
+      Math.max(16000, requestedSampleRate)
     );
     const outputChannels = options.channels === 1
       ? 1
