@@ -13,11 +13,7 @@ export class WavEncoder {
    * @returns {Blob} WAV 格式的音频数据
    */
   static encode(audioBuffer, options = {}) {
-    const {
-      targetSampleRate = 8000,
-      channels = 1,
-      bitDepth = 8
-    } = options;
+    const { targetSampleRate = 8000, channels = 1, bitDepth = 8 } = options;
 
     const sourceSampleRate = audioBuffer.sampleRate;
     const numberOfChannels = audioBuffer.numberOfChannels;
@@ -34,23 +30,27 @@ export class WavEncoder {
     const view = new DataView(buffer);
 
     // RIFF 头部（12 字节）
-    this.writeString(view, 0, 'RIFF');
+    this.writeString(view, 0, "RIFF");
     view.setUint32(4, 36 + dataSize, true); // 文件大小 - 8
-    this.writeString(view, 8, 'WAVE');
+    this.writeString(view, 8, "WAVE");
 
     // fmt 子块（24 字节）
-    this.writeString(view, 12, 'fmt ');
-    view.setUint32(16, 16, true);                 // fmt 块大小
-    view.setUint16(20, 1, true);                  // 音频格式 (1 = PCM)
-    view.setUint16(22, outputChannels, true);     // 声道数
-    view.setUint32(24, outputSampleRate, true);   // 采样率
-    view.setUint32(28, outputSampleRate * outputChannels * bytesPerSample, true); // 字节率
+    this.writeString(view, 12, "fmt ");
+    view.setUint32(16, 16, true); // fmt 块大小
+    view.setUint16(20, 1, true); // 音频格式 (1 = PCM)
+    view.setUint16(22, outputChannels, true); // 声道数
+    view.setUint32(24, outputSampleRate, true); // 采样率
+    view.setUint32(
+      28,
+      outputSampleRate * outputChannels * bytesPerSample,
+      true,
+    ); // 字节率
     view.setUint16(32, outputChannels * bytesPerSample, true); // 块对齐
-    view.setUint16(34, outputBitDepth, true);     // 位深度
+    view.setUint16(34, outputBitDepth, true); // 位深度
 
     // data 子块头部（8 字节）
-    this.writeString(view, 36, 'data');
-    view.setUint32(40, dataSize, true);          // PCM 数据大小
+    this.writeString(view, 36, "data");
+    view.setUint32(40, dataSize, true); // PCM 数据大小
 
     // 准备声道数据
     const sourceChannels = [];
@@ -61,22 +61,19 @@ export class WavEncoder {
     // 主路径已经在 AudioRepeater 中完成了重采样、混音和单声道处理。
     // 对 8kHz/单声道/8-bit 音频直接写入字节数组，避免每个采样调用 DataView 方法。
     if (
-      outputSampleRate === sourceSampleRate
-      && outputChannels === 1
-      && outputBitDepth === 8
-      && numberOfChannels === 1
+      outputSampleRate === sourceSampleRate &&
+      outputChannels === 1 &&
+      outputBitDepth === 8 &&
+      numberOfChannels === 1
     ) {
       const pcmData = new Uint8Array(buffer, 44);
       const sourceData = sourceChannels[0];
       for (let i = 0; i < outputLength; i += 1) {
         const sample = sourceData[i];
-        pcmData[i] = sample <= -1
-          ? 1
-          : sample >= 1
-            ? 255
-            : ((sample * 127 + 128.5) | 0);
+        pcmData[i] =
+          sample <= -1 ? 1 : sample >= 1 ? 255 : (sample * 127 + 128.5) | 0;
       }
-      return new Blob([buffer], { type: 'audio/wav' });
+      return new Blob([buffer], { type: "audio/wav" });
     }
 
     // 写入 PCM 音频数据（重采样 + 单声道）
@@ -100,7 +97,7 @@ export class WavEncoder {
       }
     }
 
-    return new Blob([buffer], { type: 'audio/wav' });
+    return new Blob([buffer], { type: "audio/wav" });
   }
 
   /**
@@ -125,7 +122,7 @@ export class WavEncoder {
       return offset + 1;
     }
 
-    const int16 = clamped < 0 ? clamped * 0x8000 : clamped * 0x7FFF;
+    const int16 = clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff;
     view.setInt16(offset, int16, true);
     return offset + 2;
   }
@@ -137,7 +134,12 @@ export class WavEncoder {
    * @param {number} sampleRate - 采样率
    * @returns {number} 文件大小（MB）
    */
-  static estimateSize(duration, channels = 1, sampleRate = 8000, bitDepth = 8) {
+  static estimateSize(
+    duration,
+    channels = 1,
+    sampleRate = 38000,
+    bitDepth = 8,
+  ) {
     const bytesPerSample = bitDepth / 8;
     const dataSize = duration * channels * sampleRate * bytesPerSample;
     const totalSize = dataSize + 44; // 加上文件头
@@ -155,6 +157,6 @@ export class WavEncoder {
     // 预估值用于 UI 提示，保留少量固定开销与长音频余量。
     const baseOverhead = 5;
     const perSecond = 0.05;
-    return baseOverhead + (duration * perSecond);
+    return baseOverhead + duration * perSecond;
   }
 }
